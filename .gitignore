@@ -1,0 +1,43 @@
+# Bytecode
+_build/
+*.beam
+
+# Dependencies
+deps/
+
+# Documentation
+doc/
+
+# Elixir
+*.ez
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*~
+*.tmp
+*.temp
+
+# Coverage
+cover/
+
+# Dialyzer
+.plt/
+*.plt
+
+# ElixirLS
+.elixir_ls/
