@@ -10,6 +10,11 @@ Swiex is an Elixir library that provides a client for SWI-Prolog's Machine Query
 - **Variable Binding Extraction** - Clean map-based results with variable names
 - **Phoenix Integration** - Ready-to-use examples for web applications
 
+## Status: Pre-Alpha forever
+
+This is a toy implementation built for weird reasons. I expect the performance to be horrendous; security to be inexistant; and the potential to summon evil spirits from another century to be very high.
+
+
 ## Installation
 
 Add `swiex` to your list of dependencies in `mix.exs`:
@@ -24,7 +29,7 @@ end
 
 ## Prerequisites
 
-- **SWI-Prolog** must be installed and available in your PATH
+- [SWI-Prolog](https://www.swi-prolog.org/) must be installed and available in your PATH
 - Test with: `swipl --version`
 
 ## Quick Start

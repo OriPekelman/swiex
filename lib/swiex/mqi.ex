@@ -49,19 +49,30 @@ defmodule Swiex.MQI do
         # Use the stored session
         do_query(session.socket, prolog_query)
       nil ->
-        # No stored session, use the original behavior
+        # No stored session, use behavior with proper cleanup
         host = Keyword.get(opts, :host, @default_host)
         timeout = Keyword.get(opts, :timeout, @default_timeout)
-        with {:ok, port, password} <- start_mqi_server(),
-             {:ok, socket} <- :gen_tcp.connect(host, port, [:binary, {:packet, 0}, {:active, false}], timeout),
-             :ok <- send_password(socket, password),
-             {:ok, _auth_response} <- recv_response(socket),
-             :ok <- send_query(socket, prolog_query),
-             {:ok, response} <- recv_response(socket) do
-          :gen_tcp.close(socket)
-          parse_response(response)
-        else
-          error -> {:error, error}
+        case start_mqi_server_with_ref() do
+          {:ok, port, password, port_ref} ->
+            case :gen_tcp.connect(host, port, [:binary, {:packet, 0}, {:active, false}], timeout) do
+              {:ok, socket} ->
+                result = with :ok <- send_password(socket, password),
+                              {:ok, _auth_response} <- recv_response(socket),
+                              :ok <- send_query(socket, prolog_query),
+                              {:ok, response} <- recv_response(socket) do
+                  parse_response(response)
+                else
+                  error -> {:error, error}
+                end
+                :gen_tcp.close(socket)
+                Port.close(port_ref)  # ✅ Always clean up the SWI-Prolog process
+                result
+              {:error, reason} ->
+                Port.close(port_ref)  # ✅ Clean up on connection failure
+                {:error, reason}
+            end
+          {:error, reason} ->
+            {:error, reason}
         end
     end
   end
@@ -207,13 +218,32 @@ defmodule Swiex.MQI do
   def start_session(opts \\ []) do
     host = Keyword.get(opts, :host, @default_host)
     timeout = Keyword.get(opts, :timeout, @default_timeout)
-    with {:ok, port, password, port_ref} <- start_mqi_server(:session),
-         {:ok, socket} <- :gen_tcp.connect(host, port, [:binary, {:packet, 0}, {:active, false}], timeout),
-         :ok <- send_password(socket, password),
-         {:ok, _auth_response} <- recv_response(socket) do
-      {:ok, %Session{socket: socket, host: host, port: port, password: password, timeout: timeout, port_ref: port_ref}}
-    else
-      error -> {:error, error}
+
+    case start_mqi_server(:session) do
+      {:ok, port, password, port_ref} ->
+        case :gen_tcp.connect(host, port, [:binary, {:packet, 0}, {:active, false}], timeout) do
+          {:ok, socket} ->
+            case send_password(socket, password) do
+              :ok ->
+                case recv_response(socket) do
+                  {:ok, _auth_response} ->
+                    {:ok, %Session{socket: socket, host: host, port: port, password: password, timeout: timeout, port_ref: port_ref}}
+                  {:error, reason} ->
+                    :gen_tcp.close(socket)
+                    Port.close(port_ref)  # ✅ Clean up on auth failure
+                    {:error, reason}
+                end
+              {:error, reason} ->
+                :gen_tcp.close(socket)
+                Port.close(port_ref)  # ✅ Clean up on password send failure
+                {:error, reason}
+            end
+          {:error, reason} ->
+            Port.close(port_ref)  # ✅ Clean up on connection failure
+            {:error, reason}
+        end
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -245,6 +275,7 @@ defmodule Swiex.MQI do
           {:ok, port_num, password} ->
             {:ok, port_num, password, port}
           {:error, reason} ->
+            Port.close(port)  # ✅ Clean up the port on failure
             {:error, reason}
         end
       _ ->
@@ -253,6 +284,23 @@ defmodule Swiex.MQI do
   end
 
   # Private functions
+
+  # New function that returns port reference for cleanup
+  defp start_mqi_server_with_ref do
+    case Port.open({:spawn, "swipl mqi --write_connection_values=true"},
+         [:binary, :exit_status, {:line, 1024}]) do
+      port when is_port(port) ->
+        case read_connection_values(port) do
+          {:ok, port_num, password} ->
+            {:ok, port_num, password, port}
+          {:error, reason} ->
+            Port.close(port)
+            {:error, reason}
+        end
+      _ ->
+        {:error, "Failed to start MQI server"}
+    end
+  end
 
   defp start_mqi_server do
     case Port.open({:spawn, "swipl mqi --write_connection_values=true"},
@@ -275,7 +323,10 @@ defmodule Swiex.MQI do
       [port_str, password] ->
         IO.puts("[MQI] Got port: #{port_str}, password: #{password}")
         case Integer.parse(port_str) do
-          {port_num, _} -> {:ok, port_num, password}
+          {port_num, _} ->
+            # Give SWI-Prolog a moment to fully start its MQI TCP server
+            Process.sleep(100)
+            {:ok, port_num, password}
           :error -> {:error, "Invalid port number: #{port_str}"}
         end
       data ->
