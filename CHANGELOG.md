@@ -18,6 +18,17 @@
     - `query_prolog_one/1` for first solution from raw Prolog
     - `query_prolog_solutions/2` for limited solutions from raw Prolog
   - **Transform** module for Elixir-to-Prolog conversion
+  - **Pin Operator Support**: Enhanced DSL with variable interpolation using `^` operator
+    - `query_with_bindings/2` function for executing queries with variable bindings
+    - Support for `^var` syntax in DSL queries
+- **Streaming Module**: New `Swiex.Stream` module for handling large result sets
+  - `query_stream/2` for streaming query results with configurable chunk sizes
+  - `query_stream_with_bindings/3` for streaming DSL queries with bindings
+  - Efficient memory usage for large datasets
+- **Transaction Module**: New `Swiex.Transaction` module for atomic operations
+  - `transaction/1` function for executing operations within a session
+  - `batch/1` function for executing multiple operations atomically
+  - Automatic session management and cleanup
 - **Enhanced Resource Management**: Improved port cleanup and error handling
   - Proper try/after blocks for resource cleanup
   - Enhanced timeout handling with configurable timeouts
@@ -37,6 +48,7 @@
 - **New DSL Examples**: `examples/dsl_usage.exs` demonstrating new DSL features
 - **Hybrid DSL Examples**: `examples/hybrid_dsl_usage.exs` showing both Elixir DSL and inline Prolog approaches
 - **Security Examples**: Examples showing security features in action
+- **Advanced Features Demo**: `examples/advanced_features_demo.exs` showcasing pin operator, streaming, and transaction features
 
 ### Security
 - **Query Validation**: All queries validated for size limits and dangerous patterns
@@ -47,6 +59,8 @@
 - **Security Tests**: `test/security_test.exs` for security module functionality
 - **Security Integration Tests**: `test/security_integration_test.exs` for MQI integration
 - **DSL Tests**: `test/dsl_test.exs` for DSL and Transform modules
+- **Stream Tests**: `test/stream_test.exs` for streaming functionality
+- **Transaction Tests**: `test/transaction_test.exs` for transaction support
 - **Enhanced Coverage**: All existing tests updated and passing
 
 ## [0.1.0] - 2024-12-19

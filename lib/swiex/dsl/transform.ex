@@ -12,6 +12,9 @@ defmodule Swiex.DSL.Transform do
 
       iex> Swiex.DSL.Transform.to_query({:factorial, [], [5, {:Result, [], nil}]})
       "factorial(5, Result)"
+
+      iex> Swiex.DSL.Transform.to_query({:member, [], [{:^, [], [{:X, [], nil}]}, [1, 2, 3]]})
+      "member(X, [1, 2, 3])"
   """
   @spec to_query(tuple()) :: String.t()
   def to_query({functor, _meta, args}) when is_atom(functor) do
@@ -23,6 +26,30 @@ defmodule Swiex.DSL.Transform do
   end
 
   def to_query(other) do
+    raise ArgumentError, "Expected function call tuple, got: #{inspect(other)}"
+  end
+
+  @doc """
+  Transforms an Elixir function call to a Prolog query string with variable bindings.
+
+  ## Examples
+
+      iex> Swiex.DSL.Transform.to_query_with_bindings({:member, [], [{:^, [], [{:X, [], nil}]}, [1, 2, 3]]}, [X: 2])
+      "member(2, [1, 2, 3])"
+
+      iex> Swiex.DSL.Transform.to_query_with_bindings({:factorial, [], [{:^, [], [{:N, [], nil}]}, {:Result, [], nil}]}, [N: 5])
+      "factorial(5, Result)"
+  """
+  @spec to_query_with_bindings(tuple(), keyword()) :: String.t()
+  def to_query_with_bindings({functor, _meta, args}, bindings) when is_atom(functor) do
+    args_str = args
+    |> Enum.map(&format_arg_with_bindings(&1, bindings))
+    |> Enum.join(", ")
+
+    "#{functor}(#{args_str})"
+  end
+
+  def to_query_with_bindings(other, _bindings) do
     raise ArgumentError, "Expected function call tuple, got: #{inspect(other)}"
   end
 
@@ -77,6 +104,40 @@ defmodule Swiex.DSL.Transform do
   end
 
   defp format_arg(other) do
+    inspect(other)
+  end
+
+  defp format_arg_with_bindings({:^, _meta, [{var, _meta, nil}]}, bindings) when is_atom(var) do
+    case Keyword.fetch(bindings, var) do
+      {:ok, value} -> to_string(value)
+      :error -> to_string(var) # Fallback to variable name if not found
+    end
+  end
+
+  defp format_arg_with_bindings({var, _meta, nil}, bindings) when is_atom(var) do
+    case Keyword.fetch(bindings, var) do
+      {:ok, value} -> to_string(value)
+      :error -> to_string(var) # Fallback to variable name if not found
+    end
+  end
+
+  defp format_arg_with_bindings(literal, _bindings) when is_number(literal) do
+    to_string(literal)
+  end
+
+  defp format_arg_with_bindings(literal, _bindings) when is_binary(literal) do
+    "'#{escape_string(literal)}'"
+  end
+
+  defp format_arg_with_bindings(literal, _bindings) when is_list(literal) do
+    "[" <> Enum.map_join(literal, ",", &format_arg_with_bindings(&1, _bindings)) <> "]"
+  end
+
+  defp format_arg_with_bindings({:__aliases__, _meta, [var]}, _bindings) when is_atom(var) do
+    to_string(var)
+  end
+
+  defp format_arg_with_bindings(other, _bindings) do
     inspect(other)
   end
 

@@ -12,6 +12,9 @@ Swiex is an Elixir library that provides a client for SWI-Prolog's Machine Query
 - **Variable Binding Extraction** - Clean map-based results with variable names
 - **Phoenix Integration** - Ready-to-use examples for web applications
 - **Hybrid DSL Support** - Choose between Elixir DSL syntax and raw Prolog code
+- **Pin Operator Support** - Variable interpolation in DSL queries using `^` operator
+- **Streaming Results** - Handle large datasets efficiently with configurable chunk sizes
+- **Transaction Support** - Atomic operations with automatic session management
 - **Security Features** - Query validation and sanitization to prevent injection attacks
 
 ## Status: Pre-Alpha forever
@@ -197,6 +200,9 @@ mix run examples/hybrid_dsl_usage.exs
 
 # Basic DSL examples
 mix run examples/dsl_usage.exs
+
+# Advanced features demo (Pin Operator, Streaming, Transactions)
+mix run examples/advanced_features_demo.exs
 ```
 
 ### List Processing
@@ -244,6 +250,75 @@ See the `examples/phoenix_demo/` directory for a complete Phoenix application ex
 - Web interface for Prolog queries
 - Real-time query execution
 - Session management in web context
+
+## Advanced Features
+
+### Pin Operator Support
+
+The DSL supports variable interpolation using the pin operator (`^`):
+
+```elixir
+import Swiex.DSL
+
+# Define a query with variables
+member_ast = {:member, [], [{:^, [], [{:X, [], nil}]}, [1, 2, 3, 4, 5]]}
+
+# Execute with bindings
+case query_with_bindings(member_ast, [X: 3]) do
+  {:ok, results} ->
+    IO.inspect(results)  # [%{}] (ground query returns true)
+  {:error, reason} ->
+    IO.puts("Error: #{reason}")
+end
+```
+
+### Streaming Results
+
+Handle large datasets efficiently with streaming:
+
+```elixir
+import Swiex.Stream
+
+# Stream results with custom chunk size
+stream = query_stream("member(X, [1,2,3,4,5])", 2)
+
+# Process results as they arrive
+results = stream
+  |> Stream.map(fn result -> result["X"] end)
+  |> Stream.filter(fn x -> rem(x, 2) == 0 end)  # Only even numbers
+  |> Enum.to_list()
+
+IO.inspect(results)  # [2, 4]
+```
+
+### Transaction Support
+
+Execute multiple operations atomically:
+
+```elixir
+import Swiex.Transaction
+
+# Simple transaction
+result = transaction(fn session ->
+  Swiex.MQI.assertz(session, "person(alice, 28)")
+  Swiex.MQI.assertz(session, "person(david, 32)")
+  {:ok, "Both persons added"}
+end)
+
+# Batch operations
+operations = [
+  {"person(john, 30)", :assertz},
+  {"person(jane, 25)", :assertz},
+  {"person(john, Age)", :query}
+]
+
+case batch(operations) do
+  {:ok, results} ->
+    IO.inspect(results)
+  {:error, reason} ->
+    IO.puts("Error: #{reason}")
+end
+```
 - Error handling and result display
 
 ## Error Handling

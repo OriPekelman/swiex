@@ -25,6 +25,31 @@ defmodule Swiex.DSLTest do
     end
   end
 
+  test "DSL query_with_bindings functionality" do
+    # Setup some facts
+    Swiex.MQI.consult_string("""
+      factorial(0, 1).
+      factorial(N, Result) :-
+        N > 0,
+        N1 is N - 1,
+        factorial(N1, F1),
+        Result is N * F1.
+    """, [])
+
+    # Test query with bindings - create AST manually
+    factorial_ast = {:factorial, [], [{:^, [], [{:N, [], nil}]}, {:Result, [], nil}]}
+    member_ast = {:member, [], [{:^, [], [{:X, [], nil}]}, [1, 2, 3, 4, 5]]}
+
+    # Test query with bindings
+    assert {:ok, [%{"Result" => 120}]} = Swiex.DSL.query_with_bindings(factorial_ast, [N: 5])
+    assert {:ok, [%{"Result" => 720}]} = Swiex.DSL.query_with_bindings(factorial_ast, [N: 6])
+
+    # Test with member query - when X is bound to 3, the query becomes member(3, [1,2,3,4,5])
+    # which returns true (empty map) since 3 is a member
+    assert {:ok, [%{}]} = Swiex.DSL.query_with_bindings(member_ast, [X: 3])
+    assert {:ok, []} = Swiex.DSL.query_with_bindings(member_ast, [X: 10])
+  end
+
   describe "Transform module" do
     test "to_query with simple function call" do
       ast = {:factorial, [], [5, {:Result, [], nil}]}

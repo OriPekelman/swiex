@@ -99,7 +99,25 @@ defmodule Swiex.DSL do
   """
   @spec query(tuple()) :: {:ok, list()} | {:error, term()}
   def query(ast) when is_tuple(ast) do
-    all(ast)
+    query_str = Swiex.DSL.Transform.to_query(ast)
+    Swiex.MQI.query(query_str)
+  end
+
+  @doc """
+  Executes a Prolog query using the Elixir DSL syntax with variable bindings.
+
+  ## Examples
+
+      iex> query_with_bindings(member(^X, [1,2,3]), [X: 2])
+      {:ok, [%{"X" => 2}]}
+
+      iex> query_with_bindings(factorial(^N, Result), [N: 5])
+      {:ok, [%{"Result" => 120}]}
+  """
+  @spec query_with_bindings(tuple(), keyword()) :: {:ok, list()} | {:error, term()}
+  def query_with_bindings(ast, bindings) when is_tuple(ast) and is_list(bindings) do
+    query_str = Swiex.DSL.Transform.to_query_with_bindings(ast, bindings)
+    Swiex.MQI.query(query_str)
   end
 
   @doc """
