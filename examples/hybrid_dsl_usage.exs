@@ -62,10 +62,10 @@ defmodule InlinePrologExamples do
     """
     member(X, [X|_]).
     member(X, [_|T]) :- member(X, T).
-    
+
     append([], L, L).
     append([H|T], L, [H|R]) :- append(T, L, R).
-    
+
     reverse([], []).
     reverse([H|T], R) :- reverse(T, TR), append(TR, [H], R).
     """
@@ -130,7 +130,7 @@ defmodule MixedApproachExamples do
       filter_positive([], []).
       filter_positive([H|T], [H|R]) :- H > 0, filter_positive(T, R).
       filter_positive([H|T], R) :- H =< 0, filter_positive(T, R).
-      
+
       sum_list([], 0).
       sum_list([H|T], Sum) :- sum_list(T, RestSum), Sum is H + RestSum.
     """)
@@ -165,7 +165,7 @@ if __DIR__ == __ENV__.file do
   ElixirDSLExamples.run_elixir_dsl_examples()
   InlinePrologExamples.run_inline_prolog_examples()
   MixedApproachExamples.run_mixed_examples()
-  
+
   IO.puts("\n=== Summary ===")
   IO.puts("✓ Elixir DSL: Natural Elixir syntax for simple queries")
   IO.puts("✓ Inline Prolog: Raw Prolog code for complex logic")

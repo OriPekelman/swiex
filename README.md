@@ -2,6 +2,8 @@
 
 Swiex is an Elixir library that provides a client for SWI-Prolog's Machine Query Interface (MQI), allowing you to execute Prolog queries and define inline Prolog code directly from Elixir applications.
 
+**Now with Hybrid DSL Support**: Choose between natural Elixir syntax or raw Prolog code - or mix both approaches seamlessly!
+
 ## Features
 
 - **Full MQI Protocol Support** - Implements the official SWI-Prolog MQI protocol
@@ -9,6 +11,8 @@ Swiex is an Elixir library that provides a client for SWI-Prolog's Machine Query
 - **Inline Prolog Code** - Define facts and rules on-the-fly using `assertz/1`
 - **Variable Binding Extraction** - Clean map-based results with variable names
 - **Phoenix Integration** - Ready-to-use examples for web applications
+- **Hybrid DSL Support** - Choose between Elixir DSL syntax and raw Prolog code
+- **Security Features** - Query validation and sanitization to prevent injection attacks
 
 ## Status: Pre-Alpha forever
 
@@ -69,6 +73,67 @@ end
 Swiex.MQI.stop_session(session)
 ```
 
+## Domain Specific Language (DSL)
+
+Swiex provides a powerful DSL that gives you two approaches for working with Prolog:
+
+### Elixir DSL (Natural Syntax)
+
+```elixir
+import Swiex.DSL
+
+# Simple, natural syntax
+all(member(X, [1,2,3]))           # Get all solutions
+one(factorial(5, Result))         # Get first solution
+solutions(member(X, [1,2,3]), 2)  # Get limited solutions
+query(factorial(5, Result))       # Execute query
+```
+
+### Inline Prolog (Raw Prolog Code)
+
+```elixir
+import Swiex.DSL
+
+# Define Prolog predicates inline
+prolog do
+  """
+  member(X, [X|_]).
+  member(X, [_|T]) :- member(X, T).
+  
+  append([], L, L).
+  append([H|T], L, [H|R]) :- append(T, L, R).
+  """
+end
+
+# Execute raw Prolog queries
+query_prolog("member(X, [1,2,3]), X > 2")
+query_prolog_one("member(X, [1,2,3,4,5]), X > 3")
+query_prolog_solutions("member(X, [1,2,3,4,5]), X > 2", 2)
+```
+
+### Mixed Approach
+
+```elixir
+# Use inline Prolog for complex predicate definition
+Swiex.MQI.consult_string("""
+  filter_positive([], []).
+  filter_positive([H|T], [H|R]) :- H > 0, filter_positive(T, R).
+  filter_positive([H|T], R) :- H =< 0, filter_positive(T, R).
+""")
+
+# Use Elixir DSL for simple queries
+all(filter_positive([-1, 2, -3, 4, -5], Result))
+
+# Use inline Prolog for complex queries
+query_prolog("""
+  filter_positive([-1, 2, -3, 4, -5], PosList),
+  sum_list(PosList, Sum),
+  Sum > 5
+""")
+```
+
+See `examples/hybrid_dsl_usage.exs` for comprehensive examples.
+
 ## API Reference
 
 ### One-Shot Queries
@@ -123,6 +188,16 @@ Swiex.MQI.ping(opts \\ [])
 ```
 
 ## Examples
+
+### DSL Usage
+
+```bash
+# Hybrid DSL examples (Elixir DSL + Inline Prolog)
+mix run examples/hybrid_dsl_usage.exs
+
+# Basic DSL examples
+mix run examples/dsl_usage.exs
+```
 
 ### List Processing
 

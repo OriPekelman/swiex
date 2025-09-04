@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.2.0] - 2024-12-19
+
+### Added
+- **Security Module**: New `Swiex.Security` module for query sanitization and validation
+  - Query size limits and dangerous pattern detection
+  - Input validation before query execution
+- **DSL Module**: New `Swiex.DSL` module for elegant query construction
+  - **Elixir DSL**: Natural Elixir syntax for simple queries
+    - `all/1` function for multiple solutions
+    - `one/1` function for first solution
+    - `solutions/1` and `solutions/2` functions with optional limits
+    - `query/1` function for natural syntax
+  - **Inline Prolog**: Direct Prolog code embedded in Elixir
+    - `prolog/1` macro for defining Prolog predicates inline
+    - `query_prolog/1` for executing raw Prolog queries
+    - `query_prolog_one/1` for first solution from raw Prolog
+    - `query_prolog_solutions/2` for limited solutions from raw Prolog
+  - **Transform** module for Elixir-to-Prolog conversion
+- **Enhanced Resource Management**: Improved port cleanup and error handling
+  - Proper try/after blocks for resource cleanup
+  - Enhanced timeout handling with configurable timeouts
+  - Better error types including `:query_timeout` and `{:security_error, reason}`
+- **Security Integration**: Security validation integrated into MQI operations
+  - All queries validated before execution
+  - `assertz/2` operations validated for security
+  - Comprehensive test coverage for security features
+
+### Changed
+- **MQI Module**: Enhanced with security validation and better error handling
+  - Resource cleanup now guaranteed in all code paths
+  - Timeout handling improved with `recv_response/2`
+  - Security validation integrated into `query/2` and `assertz/2`
+
+### Examples
+- **New DSL Examples**: `examples/dsl_usage.exs` demonstrating new DSL features
+- **Hybrid DSL Examples**: `examples/hybrid_dsl_usage.exs` showing both Elixir DSL and inline Prolog approaches
+- **Security Examples**: Examples showing security features in action
+
+### Security
+- **Query Validation**: All queries validated for size limits and dangerous patterns
+- **Injection Prevention**: Protection against Prolog injection attacks
+- **Input Sanitization**: Proper escaping of special characters
+
+### Testing
+- **Security Tests**: `test/security_test.exs` for security module functionality
+- **Security Integration Tests**: `test/security_integration_test.exs` for MQI integration
+- **DSL Tests**: `test/dsl_test.exs` for DSL and Transform modules
+- **Enhanced Coverage**: All existing tests updated and passing
+
+## [0.1.0] - 2024-12-19
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

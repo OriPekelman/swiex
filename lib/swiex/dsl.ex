@@ -1,22 +1,22 @@
 defmodule Swiex.DSL do
   @moduledoc """
   Domain Specific Language for Swiex that provides elegant query construction.
-  
+
   This module provides two approaches:
   1. **Elixir DSL**: Natural Elixir syntax for queries
   2. **Inline Prolog**: Direct Prolog code embedded in Elixir
-  
+
   See examples/hybrid_dsl_usage.exs for comprehensive examples.
   """
 
   @doc """
   Executes a Prolog query and returns all solutions.
-  
+
   ## Examples
-  
+
       iex> all("member(X, [1,2,3])")
       {:ok, [%{"X" => 1}, %{"X" => 2}, %{"X" => 3}]}
-      
+
       iex> all(member(X, [1,2,3]))
       {:ok, [%{"X" => 1}, %{"X" => 2}, %{"X" => 3}]}
   """
@@ -32,12 +32,12 @@ defmodule Swiex.DSL do
 
   @doc """
   Executes a Prolog query and returns the first solution.
-  
+
   ## Examples
-  
+
       iex> one("member(X, [1,2,3])")
       {:ok, %{"X" => 1}}
-      
+
       iex> one(member(X, [1,2,3]))
       {:ok, %{"X" => 1}}
   """
@@ -57,15 +57,15 @@ defmodule Swiex.DSL do
 
   @doc """
   Executes a Prolog query and returns solutions with an optional limit.
-  
+
   ## Examples
-  
+
       iex> solutions("member(X, [1,2,3])")
       {:ok, [%{"X" => 1}, %{"X" => 2}, %{"X" => 3}]}
-      
+
       iex> solutions("member(X, [1,2,3])", 2)
       {:ok, [%{"X" => 1}, %{"X" => 2}]}
-      
+
       iex> solutions(member(X, [1,2,3]), 2)
       {:ok, [%{"X" => 1}, %{"X" => 2}]}
   """
@@ -88,12 +88,12 @@ defmodule Swiex.DSL do
 
   @doc """
   Executes a Prolog query using the Elixir DSL syntax.
-  
+
   ## Examples
-  
+
       iex> query(member(X, [1,2,3]))
       {:ok, [%{"X" => 1}, %{"X" => 2}, %{"X" => 3}]}
-      
+
       iex> query(factorial(5, Result))
       {:ok, [%{"Result" => 120}]}
   """
@@ -104,9 +104,9 @@ defmodule Swiex.DSL do
 
   @doc """
   Defines Prolog predicates inline using raw Prolog syntax.
-  
+
   This allows you to write actual Prolog code directly in your Elixir files.
-  
+
   See examples/hybrid_dsl_usage.exs for comprehensive examples.
   """
   defmacro prolog(do: block) do
@@ -120,15 +120,15 @@ defmodule Swiex.DSL do
 
   @doc """
   Executes a raw Prolog query string.
-  
+
   This is useful when you want to write complex Prolog queries
   that would be difficult to express in the Elixir DSL.
-  
+
   ## Examples
-  
+
       iex> query_prolog("member(X, [1,2,3]), X > 2")
       {:ok, [%{"X" => 3}]}
-      
+
       iex> query_prolog("""
       ...>   factorial(5, Result),
       ...>   Result > 100
@@ -142,9 +142,9 @@ defmodule Swiex.DSL do
 
   @doc """
   Executes a raw Prolog query string and returns the first solution.
-  
+
   ## Examples
-  
+
       iex> query_prolog_one("member(X, [1,2,3]), X > 2")
       {:ok, %{"X" => 3}}
   """
@@ -155,9 +155,9 @@ defmodule Swiex.DSL do
 
   @doc """
   Executes a raw Prolog query string with a solution limit.
-  
+
   ## Examples
-  
+
       iex> query_prolog_solutions("member(X, [1,2,3,4,5]), X > 2", 2)
       {:ok, [%{"X" => 3}, %{"X" => 4}]}
   """
