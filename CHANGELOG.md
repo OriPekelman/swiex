@@ -14,11 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Special character escaping for Prolog strings
   - Input validation before query execution
 - **DSL Module**: New `Swiex.DSL` module for elegant query construction
-  - `all/1` function for multiple solutions
-  - `one/1` function for first solution
-  - `solutions/1` and `solutions/2` functions with optional limits
-  - `query/1` macro for natural syntax
-  - `Transform` module for Elixir-to-Prolog conversion
+  - **Elixir DSL**: Natural Elixir syntax for simple queries
+    - `all/1` function for multiple solutions
+    - `one/1` function for first solution
+    - `solutions/1` and `solutions/2` functions with optional limits
+    - `query/1` function for natural syntax
+  - **Inline Prolog**: Direct Prolog code embedded in Elixir
+    - `prolog/1` macro for defining Prolog predicates inline
+    - `query_prolog/1` for executing raw Prolog queries
+    - `query_prolog_one/1` for first solution from raw Prolog
+    - `query_prolog_solutions/2` for limited solutions from raw Prolog
+  - **Transform** module for Elixir-to-Prolog conversion
 - **Enhanced Resource Management**: Improved port cleanup and error handling
   - Proper try/after blocks for resource cleanup
   - Consistent port and socket cleanup in all error paths
@@ -46,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Examples
 - **New DSL Examples**: `examples/dsl_usage.exs` demonstrating new DSL features
+- **Hybrid DSL Examples**: `examples/hybrid_dsl_usage.exs` showing both Elixir DSL and inline Prolog approaches
 - **Security Examples**: Examples showing security features in action
 
 ## [0.1.0] - 2024-01-XX
