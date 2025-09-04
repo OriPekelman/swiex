@@ -17,7 +17,7 @@ defmodule PrologDemoWeb.Router do
   scope "/", PrologDemoWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    get "/", PrologController, :index
     get "/prolog", PrologController, :index
     post "/prolog/query", PrologController, :query
   end
@@ -25,7 +25,7 @@ defmodule PrologDemoWeb.Router do
   scope "/api", PrologDemoWeb do
     pipe_through :api
 
-    get "/prolog", PrologController, :query
+    post "/prolog/query", PrologController, :query
   end
 
   # Other scopes may use custom stacks.

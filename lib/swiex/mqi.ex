@@ -419,9 +419,11 @@ defmodule Swiex.MQI do
   defp parse_response(response) do
     # Parse the <length>.\n<json>.\n format
     case parse_mqi_message(response) do
-      {:ok, json_str} when json_str == "false" ->
+      {:ok, json_str} when json_str == "false" or json_str == "\"false\"" ->
+        # Prolog query failed - no solutions found
         {:ok, []}
-      {:ok, json_str} when json_str == "true" ->
+      {:ok, json_str} when json_str == "true" or json_str == "\"true\"" ->
+        # Prolog query succeeded but no variables to bind
         {:ok, true}
       {:ok, json_str} ->
         IO.puts("[MQI] Parsed JSON: #{json_str}")
@@ -432,9 +434,15 @@ defmodule Swiex.MQI do
             {:error, "Syntax error: #{error_msg}"}
           {:ok, %{"functor" => "exception", "args" => [error_data]}} ->
             {:error, "Exception: #{inspect(error_data)}"}
+          {:ok, %{"functor" => "false"}} ->
+            # Prolog query failed - no solutions found
+            {:ok, []}
+          {:ok, %{"functor" => "error", "args" => [error_msg]}} ->
+            # Prolog query error
+            {:error, "Query error: #{error_msg}"}
           {:ok, response_data} ->
             IO.puts("[MQI] Unexpected response format: #{inspect(response_data)}")
-            {:error, "Unexpected response format"}
+            {:error, "Unexpected response format: #{inspect(response_data)}"}
           {:error, reason} ->
             {:error, "JSON decode error: #{inspect(reason)}"}
         end
@@ -452,6 +460,7 @@ defmodule Swiex.MQI do
             if byte_size(rest) >= length do
               <<json::binary-size(length), _rest::binary>> = rest
               json = String.trim_trailing(json, ".\n")
+              json = String.trim(json)
               {:ok, json}
             else
               {:error, "Incomplete message"}

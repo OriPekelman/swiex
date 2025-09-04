@@ -100,4 +100,38 @@ defmodule SwiexTest do
         assert true # Expected error
     end
   end
+
+  test "handling queries that return no solutions" do
+    # Define factorial predicate that only works with integers
+    Swiex.MQI.consult_string("""
+      factorial(0, 1).
+      factorial(N, Result) :-
+        N > 0,
+        N1 is N - 1,
+        factorial(N1, F1),
+        Result is N * F1.
+    """, [])
+
+    # Test factorial with a float (should fail and return no solutions)
+    query = "factorial(5.1, Result)"
+    case Swiex.query(query) do
+      {:ok, results} ->
+        # Should return empty list when no solutions found
+        assert results == []
+
+      {:error, reason} ->
+        flunk("Query should return empty results, not error: #{reason}")
+    end
+
+    # Test retract with non-existent fact (should return no solutions)
+    query = "retract(nonexistent_fact(42))"
+    case Swiex.query(query) do
+      {:ok, results} ->
+        # Should return empty list when no solutions found
+        assert results == []
+
+      {:error, reason} ->
+        flunk("Query should return empty results, not error: #{reason}")
+    end
+  end
 end
