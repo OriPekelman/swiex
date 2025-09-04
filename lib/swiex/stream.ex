@@ -61,13 +61,34 @@ defmodule Swiex.Stream do
       {:ok, session} ->
         # Execute the query and get initial results
         case Swiex.MQI.query(session, query) do
-          {:ok, results} ->
+          {:ok, results} when is_list(results) and results != [] ->
             %{
               session: session,
               query: query,
               chunk_size: chunk_size,
               remaining: results,
-              offset: 0
+              offset: 0,
+              has_more: false  # We got all results in one go
+            }
+          {:ok, results} when is_list(results) and results == [] ->
+            # No results found - return empty state but don't error
+            %{
+              session: session,
+              query: query,
+              chunk_size: chunk_size,
+              remaining: [],
+              offset: 0,
+              has_more: false
+            }
+          {:ok, true} ->
+            # Query succeeded but no variables to bind - return empty state
+            %{
+              session: session,
+              query: query,
+              chunk_size: chunk_size,
+              remaining: [],
+              offset: 0,
+              has_more: false
             }
           {:error, reason} ->
             Swiex.MQI.stop_session(session)
@@ -78,8 +99,13 @@ defmodule Swiex.Stream do
     end
   end
 
-  defp fetch_next_chunk(%{remaining: [], session: _session} = state) do
-    # No more results, try to get more from Prolog
+  defp fetch_next_chunk(%{remaining: [], has_more: false} = state) do
+    # No more results available, end the stream by returning :halt
+    {:halt, state}
+  end
+
+  defp fetch_next_chunk(%{remaining: [], has_more: true} = state) do
+    # Try to get more results from Prolog
     case fetch_more_results(state) do
       {:ok, new_results} when new_results != [] ->
         # Got more results
@@ -87,14 +113,14 @@ defmodule Swiex.Stream do
         {Enum.take(new_state.remaining, state.chunk_size), new_state}
       {:ok, []} ->
         # No more results available
-        {[], %{state | remaining: []}}
+        {:halt, %{state | remaining: [], has_more: false}}
       {:error, _reason} ->
         # Error occurred, stop streaming
-        {[], %{state | remaining: []}}
+        {:halt, %{state | remaining: [], has_more: false}}
     end
   end
 
-  defp fetch_next_chunk(%{remaining: remaining, chunk_size: chunk_size} = state) do
+  defp fetch_next_chunk(%{remaining: remaining, chunk_size: chunk_size} = state) when remaining != [] do
     # Return current chunk and update state
     chunk = Enum.take(remaining, chunk_size)
     new_remaining = Enum.drop(remaining, chunk_size)
@@ -104,7 +130,7 @@ defmodule Swiex.Stream do
 
   defp fetch_next_chunk({:error, _reason}) do
     # Handle error state
-    {[], {:error, :stream_error}}
+    {:halt, {:error, :stream_error}}
   end
 
   defp fetch_more_results(%{session: _session, query: _query, offset: _offset, chunk_size: _chunk_size}) do

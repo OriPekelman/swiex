@@ -15,7 +15,7 @@ Swiex is an Elixir library that provides a client for SWI-Prolog's Machine Query
 - **Pin Operator Support** - Variable interpolation in DSL queries using `^` operator
 - **Streaming Results** - Handle large datasets efficiently with configurable chunk sizes
 - **Transaction Support** - Atomic operations with automatic session management
-- **Security Features** - Query validation and sanitization to prevent injection attacks
+- **Security Features** - Query validation and sanitization to prevent injection attacks. Because  that is a thing.
 
 ## Status: Pre-Alpha forever
 
@@ -29,7 +29,7 @@ Add `swiex` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:swiex, "~> 0.1.0"}
+    {:swiex, "~> 0.2.0"}
   ]
 end
 ```
