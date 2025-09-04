@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Security Module**: New `Swiex.Security` module for query sanitization and validation
+  - Query size limits (10KB max)
+  - Dangerous pattern detection (halt, shell, system, etc.)
+  - Special character escaping for Prolog strings
+  - Input validation before query execution
+- **DSL Module**: New `Swiex.DSL` module for elegant query construction
+  - `all/1` function for multiple solutions
+  - `one/1` function for first solution
+  - `solutions/1` and `solutions/2` functions with optional limits
+  - `query/1` macro for natural syntax
+  - `Transform` module for Elixir-to-Prolog conversion
+- **Enhanced Resource Management**: Improved port cleanup and error handling
+  - Proper try/after blocks for resource cleanup
+  - Consistent port and socket cleanup in all error paths
+  - Better timeout handling with configurable timeouts
+- **Security Integration**: All queries now validated through security module
+  - Automatic rejection of dangerous queries
+  - Protection against injection attacks
+  - Secure handling of user input
+
+### Changed
+- **MQI Module**: Enhanced with security validation and better error handling
+  - All queries now validated before execution
+  - Improved timeout handling with `:query_timeout` error type
+  - Better resource cleanup in error scenarios
+- **Error Types**: New security error types for better error handling
+  - `{:security_error, :potentially_dangerous_query}`
+  - `{:security_error, :query_too_large}`
+  - `{:security_error, :invalid_query_type}`
+
+### Security
+- **Query Validation**: All Prolog queries now validated for security
+- **Input Sanitization**: Automatic escaping of special characters
+- **Pattern Blocking**: Rejection of potentially dangerous Prolog predicates
+- **Size Limits**: Protection against oversized queries
+
+### Examples
+- **New DSL Examples**: `examples/dsl_usage.exs` demonstrating new DSL features
+- **Security Examples**: Examples showing security features in action
+
 ## [0.1.0] - 2024-01-XX
 
 ### Added

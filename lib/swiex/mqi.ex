@@ -43,6 +43,16 @@ defmodule Swiex.MQI do
     do_query(session.socket, prolog_query)
   end
   def query(prolog_query, opts) do
+    # Validate and sanitize the query first
+    case Swiex.Security.validate_query(prolog_query) do
+      :ok ->
+        do_query_with_validation(prolog_query, opts)
+      {:error, reason} ->
+        {:error, {:security_error, reason}}
+    end
+  end
+
+  defp do_query_with_validation(prolog_query, opts) do
     # Check if we have a stored session from consult_string
     case Process.get(:swiex_session) do
       %Session{} = session ->
@@ -52,21 +62,25 @@ defmodule Swiex.MQI do
         # No stored session, use behavior with proper cleanup
         host = Keyword.get(opts, :host, @default_host)
         timeout = Keyword.get(opts, :timeout, @default_timeout)
+
         case start_mqi_server_with_ref() do
           {:ok, port, password, port_ref} ->
             case :gen_tcp.connect(host, port, [:binary, {:packet, 0}, {:active, false}], timeout) do
               {:ok, socket} ->
-                result = with :ok <- send_password(socket, password),
-                              {:ok, _auth_response} <- recv_response(socket),
-                              :ok <- send_query(socket, prolog_query),
-                              {:ok, response} <- recv_response(socket) do
-                  parse_response(response)
-                else
-                  error -> {:error, error}
+                try do
+                  with :ok <- send_password(socket, password),
+                       {:ok, _auth_response} <- recv_response(socket),
+                       :ok <- send_query(socket, prolog_query),
+                       {:ok, response} <- recv_response(socket) do
+                    parse_response(response)
+                  else
+                    error -> {:error, error}
+                  end
+                after
+                  # Always clean up resources
+                  :gen_tcp.close(socket)
+                  Port.close(port_ref)
                 end
-                :gen_tcp.close(socket)
-                Port.close(port_ref)  # ✅ Always clean up the SWI-Prolog process
-                result
               {:error, reason} ->
                 Port.close(port_ref)  # ✅ Clean up on connection failure
                 {:error, reason}
@@ -130,8 +144,14 @@ defmodule Swiex.MQI do
     do_query(session.socket, "assertz((#{clean_clause}))")
   end
   def assertz(clause, opts) do
-    clean_clause = clause |> String.trim() |> String.trim_trailing(".")
-    query("assertz((#{clean_clause}))", opts)
+    # Validate the clause before asserting
+    case Swiex.Security.validate_query(clause) do
+      :ok ->
+        clean_clause = clause |> String.trim() |> String.trim_trailing(".")
+        query("assertz((#{clean_clause}))", opts)
+      {:error, reason} ->
+        {:error, {:security_error, reason}}
+    end
   end
 
   @doc """
@@ -382,11 +402,14 @@ defmodule Swiex.MQI do
     :gen_tcp.send(socket, packet)
   end
 
-  defp recv_response(socket) do
-    case :gen_tcp.recv(socket, 0, 2000) do
+  defp recv_response(socket, timeout \\ @default_timeout) do
+    case :gen_tcp.recv(socket, 0, timeout) do
       {:ok, response} ->
         IO.puts("[MQI] Raw response: #{inspect(response)}")
         {:ok, response}
+      {:error, :timeout} ->
+        IO.puts("[MQI] Recv timeout after #{timeout}ms")
+        {:error, :query_timeout}
       {:error, reason} ->
         IO.puts("[MQI] Recv error: #{inspect(reason)}")
         {:error, reason}
