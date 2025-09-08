@@ -6,7 +6,7 @@ defmodule Swiex.MonitoringTest do
   describe "Monitoring.init/1" do
     test "initializes with default values" do
       state = Monitoring.init()
-      
+
       assert state.debug_enabled == false
       assert state.rate_limit_ms == 1000
       assert state.query_count == 0
@@ -17,7 +17,7 @@ defmodule Swiex.MonitoringTest do
 
     test "initializes with custom options" do
       state = Monitoring.init(debug_enabled: true, rate_limit_ms: 500)
-      
+
       assert state.debug_enabled == true
       assert state.rate_limit_ms == 500
     end
@@ -28,21 +28,21 @@ defmodule Swiex.MonitoringTest do
       # Start a test MQI session
       {:ok, session} = MQI.start_session()
       on_exit(fn -> MQI.stop_session(session) end)
-      
+
       state = Monitoring.init()
       {:ok, session: session, state: state}
     end
 
     test "tracks query execution", %{session: session, state: state} do
       query = "member(X, [1,2,3])"
-      
+
       {result, new_state} = Monitoring.monitor_query(
         state,
         session,
         query,
         fn -> MQI.query(session, query) end
       )
-      
+
       assert {:ok, _} = result
       assert new_state.query_count == 1
       assert new_state.total_time_ms > 0
@@ -51,21 +51,21 @@ defmodule Swiex.MonitoringTest do
 
     test "handles query errors gracefully", %{session: session, state: state} do
       query = "invalid_predicate(X)"
-      
+
       {result, new_state} = Monitoring.monitor_query(
         state,
         session,
         query,
         fn -> MQI.query(session, query) end
       )
-      
+
       assert {:ok, []} = result  # Empty result for undefined predicate
       assert new_state.query_count == 1
     end
 
     test "accumulates statistics across multiple queries", %{session: session, state: state} do
       queries = ["member(1, [1,2,3])", "append([1], [2], X)", "length([1,2,3], N)"]
-      
+
       final_state = Enum.reduce(queries, state, fn query, acc_state ->
         {_, new_state} = Monitoring.monitor_query(
           acc_state,
@@ -75,7 +75,7 @@ defmodule Swiex.MonitoringTest do
         )
         new_state
       end)
-      
+
       assert final_state.query_count == 3
       assert final_state.total_time_ms > 0
       assert final_state.total_inferences >= 0
@@ -91,7 +91,7 @@ defmodule Swiex.MonitoringTest do
 
     test "retrieves Prolog statistics", %{session: session} do
       stats = Monitoring.get_statistics(session)
-      
+
       case stats do
         {:error, _} ->
           # Statistics might not be available in all Prolog configurations
@@ -114,9 +114,9 @@ defmodule Swiex.MonitoringTest do
         last_debug_time: 0,
         session_stats: %{}
       }
-      
+
       summary = Monitoring.get_summary(state)
-      
+
       assert summary.query_count == 10
       assert summary.total_inferences == 1000
       assert summary.total_time_ms == 500
@@ -127,7 +127,7 @@ defmodule Swiex.MonitoringTest do
     test "handles zero queries" do
       state = Monitoring.init()
       summary = Monitoring.get_summary(state)
-      
+
       assert summary.query_count == 0
       assert summary.avg_time_ms == 0
       assert summary.avg_inferences == 0
@@ -145,9 +145,9 @@ defmodule Swiex.MonitoringTest do
         last_debug_time: 12345,
         session_stats: %{"test" => 123}
       }
-      
+
       reset_state = Monitoring.reset_stats(state)
-      
+
       assert reset_state.query_count == 0
       assert reset_state.total_inferences == 0
       assert reset_state.total_time_ms == 0

@@ -35,6 +35,12 @@ defmodule PrologDemoWeb.CauseNetLive do
                 🧩 Constraint Solving
               </.link>
               <.link
+                navigate={~p"/causenet/sudoku"}
+                class={tab_class(@active_tab, "sudoku-solver")}
+              >
+                🔢 Sudoku Solver
+              </.link>
+              <.link
                 navigate={~p"/causenet/playground"}
                 class={tab_class(@active_tab, "prolog-playground")}
               >
@@ -284,7 +290,7 @@ defmodule PrologDemoWeb.CauseNetLive do
                                 <% end %>
                               </div>
                             </div>
-                            
+
                             <!-- Solution -->
                             <div>
                               <div class="text-sm font-medium text-gray-700 mb-2 text-center">Solution</div>
@@ -562,6 +568,7 @@ valid_move(Grid, Row, Col, N) :-
     demo_type = case socket.assigns.live_action do
       :causal -> "causal"
       :constraints -> "constraints"
+      :sudoku -> "sudoku"
       :playground -> "playground"
       _ -> "causal" # default
     end
@@ -570,6 +577,7 @@ valid_move(Grid, Row, Col, N) :-
     facts_loaded = case demo_type do
       "causal" -> PrologDemo.CausalSessionManager.facts_loaded?()
       "constraints" -> PrologDemo.ConstraintSessionManager.facts_loaded?()
+      "sudoku" -> PrologDemo.ConstraintSessionManager.facts_loaded?()  # Sudoku uses the same constraint solver
       "playground" -> PrologDemo.PlaygroundSessionManager.facts_loaded?()
     end
 
@@ -825,6 +833,7 @@ valid_move(Grid, Row, Col, N) :-
     case demo_type do
       "causal" -> "causal-reasoning"
       "constraints" -> "constraint-solving"
+      "sudoku" -> "sudoku-solver"
       "playground" -> "prolog-playground"
       _ -> "causal-reasoning"
     end
