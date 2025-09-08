@@ -27,7 +27,9 @@ defmodule PrologDemo.ConstraintSessionManager do
   end
 
   def query_constraint_solver(puzzle_type, params) do
-    GenServer.call(__MODULE__, {:query_constraint_solver, puzzle_type, params})
+    # Use longer timeout for Sudoku as it's more complex
+    timeout = if puzzle_type == "sudoku", do: 30_000, else: 5_000
+    GenServer.call(__MODULE__, {:query_constraint_solver, puzzle_type, params}, timeout)
   end
 
   def facts_loaded? do
@@ -81,18 +83,9 @@ defmodule PrologDemo.ConstraintSessionManager do
         end
 
       "sudoku" ->
-        # First get the puzzle
-        puzzle_query = "get_sample_sudoku(Puzzle)"
-        puzzle_result = MQI.query(session, puzzle_query)
-
-        puzzle = case puzzle_result do
-          {:ok, [%{"Puzzle" => p} | _]} -> p
-          _ -> nil
-        end
-
-        # Then solve it with monitoring
-        query = "get_sample_sudoku(Puzzle), sudoku_solution(Puzzle, Solution)"
-
+        # Use a simpler query that returns both puzzle and solution
+        query = "sample_sudoku(Puzzle), copy_term(Puzzle, Solution), sudoku_solve(Solution)"
+        
         start_time = System.monotonic_time(:millisecond)
         {result, new_monitoring_state} = Monitoring.monitor_query(
           monitoring_state,
@@ -101,9 +94,12 @@ defmodule PrologDemo.ConstraintSessionManager do
           fn -> MQI.query(session, query) end
         )
         end_time = System.monotonic_time(:millisecond)
-
+        
         case result do
-          {:ok, [%{"Solution" => solution} | _]} ->
+          {:ok, [first | _]} when is_map(first) ->
+            puzzle = Map.get(first, "Puzzle")
+            solution = Map.get(first, "Solution")
+            
             {:reply, {:ok, %{
               puzzle: puzzle,
               solution: solution,
@@ -111,7 +107,7 @@ defmodule PrologDemo.ConstraintSessionManager do
               count: 1
             }}, %{state | monitoring_state: new_monitoring_state}}
           {:ok, _} ->
-            {:reply, {:ok, %{puzzle: puzzle, solution: nil, count: 0}}, %{state | monitoring_state: new_monitoring_state}}
+            {:reply, {:ok, %{puzzle: nil, solution: nil, count: 0}}, %{state | monitoring_state: new_monitoring_state}}
           {:error, reason} ->
             {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
         end
@@ -313,10 +309,10 @@ defmodule PrologDemo.ConstraintSessionManager do
              get_cell(Grid, Row, Col, Value)),
             Box).
 
-    % Main interface
-    sudoku_solution(Grid, Solution) :-
-        sudoku_solve(Grid),
-        Solution = Grid.
+    % Main interface - create a copy and solve it
+    sudoku_solution(Puzzle, Solution) :-
+        copy_term(Puzzle, Solution),
+        sudoku_solve(Solution).
 
     % Get sample puzzle
     get_sample_sudoku(Puzzle) :-
