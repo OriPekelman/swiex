@@ -23,7 +23,7 @@ defmodule Swiex.MQI do
     Holds the state for a persistent MQI session.
     """
     defstruct [:socket, :host, :port, :password, :timeout, :port_ref, :async_queries]
-    
+
     def new(attrs) do
       struct(__MODULE__, Keyword.put(attrs, :async_queries, %{}))
     end
@@ -104,14 +104,14 @@ defmodule Swiex.MQI do
     # Generate a unique query ID
     query_id = generate_query_id()
     timeout = Keyword.get(opts, :timeout, -1)
-    
+
     # Send async query using run_async instead of run
     with :ok <- send_async_query(session.socket, query_id, prolog_query, timeout),
          {:ok, response} <- recv_response(session.socket) do
       case parse_response(response) do
-        {:ok, _} -> 
+        {:ok, _} ->
           {:ok, query_id}
-        error -> 
+        error ->
           error
       end
     else
@@ -461,7 +461,7 @@ defmodule Swiex.MQI do
   defp send_async_query(socket, query_id, query, timeout) do
     # Format: run_async(Goal, Timeout, QueryID)
     clean_query = String.trim_trailing(String.trim(query), ".")
-    
+
     formatted_query = if String.contains?(clean_query, ",") do
       "(#{clean_query})"
     else
