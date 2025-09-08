@@ -56,65 +56,39 @@ defmodule PrologDemo.ConstraintSessionManager do
         
         start_time = System.monotonic_time(:millisecond)
         
-        # Try async query with corrected command names
+        # Use synchronous query - MQI doesn't support async at protocol level
         query = "setof(Solution, n_queens(#{n}, Solution), Solutions)"
         
-        case MQI.query_async(session, query, timeout: 10000) do
-          {:ok, query_id} ->
-            # Poll for result
-            result = wait_for_async_result(session, query_id, 10000)
-            end_time = System.monotonic_time(:millisecond)
+        result = MQI.query(session, query)
+        end_time = System.monotonic_time(:millisecond)
+        
+        new_monitoring_state = %{monitoring_state | 
+          query_count: monitoring_state.query_count + 1,
+          total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+        }
+        
+        case result do
+          {:ok, [%{"Solutions" => solutions}]} when is_list(solutions) ->
+            {:reply, {:ok, %{
+              n: n,
+              solutions: Enum.take(solutions, 10),  # Limit display to 10
+              count: length(solutions),
+              display_limit: 10
+            }}, %{state | monitoring_state: new_monitoring_state}}
             
-            new_monitoring_state = %{monitoring_state | 
-              query_count: monitoring_state.query_count + 1,
-              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
-            }
-            
-            case result do
-              {:ok, [%{"Solutions" => solutions}]} when is_list(solutions) ->
+          _ ->
+            # Fallback: get first 10 individual solutions
+            case MQI.query(session, "n_queens(#{n}, Solution)") do
+              {:ok, results} when is_list(results) ->
+                solutions = Enum.map(results, fn %{"Solution" => s} -> s end) |> Enum.take(10)
                 {:reply, {:ok, %{
                   n: n,
-                  solutions: Enum.take(solutions, 10),  # Limit display to 10
+                  solutions: solutions,
                   count: length(solutions),
                   display_limit: 10
                 }}, %{state | monitoring_state: new_monitoring_state}}
-                
-              _ ->
-                # Fallback to synchronous
-                case MQI.query(session, "n_queens(#{n}, Solution)") do
-                  {:ok, results} ->
-                    solutions = Enum.map(results, fn %{"Solution" => s} -> s end) |> Enum.take(10)
-                    {:reply, {:ok, %{
-                      n: n,
-                      solutions: solutions,
-                      count: length(solutions),
-                      display_limit: 10
-                    }}, %{state | monitoring_state: new_monitoring_state}}
-                  {:error, reason} ->
-                    {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
-                end
-            end
-            
-          {:error, _} ->
-            # Fallback to synchronous if async not available
-            end_time = System.monotonic_time(:millisecond)
-            result = MQI.query(session, query)
-            
-            new_monitoring_state = %{monitoring_state | 
-              query_count: monitoring_state.query_count + 1,
-              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
-            }
-            
-            case result do
-              {:ok, [%{"Solutions" => solutions}]} when is_list(solutions) ->
-                {:reply, {:ok, %{
-                  n: n,
-                  solutions: Enum.take(solutions, 10),
-                  count: length(solutions),
-                  display_limit: 10
-                }}, %{state | monitoring_state: new_monitoring_state}}
-              _ ->
-                {:reply, {:error, "Could not solve N-Queens"}, %{state | monitoring_state: new_monitoring_state}}
+              {:error, reason} ->
+                {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
             end
         end
 
@@ -143,18 +117,17 @@ defmodule PrologDemo.ConstraintSessionManager do
           {:ok, [%{"V" => 5}]} ->
             IO.puts("✅ Sudoku helper functions working")
 
-            # Now try the actual solver with a simpler approach
-            # Use copy_term to avoid modifying the original
-            solve_query = "sample_sudoku(P), copy_term(P, S), sudoku_solve(S)"
-
+            # Now try the actual solver using sudoku_solution which handles copying
+            solve_query = "sample_sudoku(P), sudoku_solution(P, S)"
+            
             case MQI.query(session, solve_query) do
-              {:ok, [%{"S" => solution} | _]} ->
+              {:ok, [%{"P" => puzzle, "S" => solution} | _]} ->
                 end_time = System.monotonic_time(:millisecond)
-                new_monitoring_state = %{monitoring_state |
+                new_monitoring_state = %{monitoring_state | 
                   query_count: monitoring_state.query_count + 1,
                   total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
                 }
-
+                
                 {:reply, {:ok, %{
                   puzzle: default_puzzle,
                   solution: solution,
@@ -200,27 +173,8 @@ defmodule PrologDemo.ConstraintSessionManager do
     {:reply, loaded, state}
   end
 
-  # Helper function to wait for async results with polling
-  defp wait_for_async_result(session, query_id, timeout) do
-    deadline = System.monotonic_time(:millisecond) + timeout
-    poll_for_result(session, query_id, deadline)
-  end
-
-  defp poll_for_result(session, query_id, deadline) do
-    now = System.monotonic_time(:millisecond)
-    if now >= deadline do
-      {:error, :timeout}
-    else
-      case MQI.get_async_result(session, query_id, 100) do
-        {:ok, nil} -> {:ok, []}  # Query completed with no more results
-        {:ok, results} -> {:ok, results}
-        {:pending, _} ->
-          :timer.sleep(100)
-          poll_for_result(session, query_id, deadline)
-        {:error, reason} -> {:error, reason}
-      end
-    end
-  end
+  # Note: Async queries are not currently used as MQI doesn't support them at protocol level
+  # These functions are kept for future reference if MQI adds async support
 
 
   def handle_call({:load_facts_with_progress, pid}, _from, %{session: session} = state) do
