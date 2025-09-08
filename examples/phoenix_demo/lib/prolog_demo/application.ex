@@ -6,16 +6,20 @@ defmodule PrologDemo.Application do
   use Application
 
   def start(_type, _args) do
-    children = [
-      # Start the Telemetry supervisor
-      PrologDemoWeb.Telemetry,
-      # Start the PubSub system
-      {Phoenix.PubSub, name: PrologDemo.PubSub},
-      # Start the Endpoint (http/https)
-      PrologDemoWeb.Endpoint
-      # Start a worker by calling: PrologDemo.Worker.start_link(arg)
-      # {PrologDemo.Worker, arg}
-    ]
+            children = [
+          # Start the Telemetry supervisor
+          PrologDemoWeb.Telemetry,
+          # Start the PubSub system
+          {Phoenix.PubSub, name: PrologDemo.PubSub},
+          # Start the separate session managers for each demo
+          PrologDemo.CausalSessionManager,
+          PrologDemo.ConstraintSessionManager,
+          PrologDemo.PlaygroundSessionManager,
+          # Start the Endpoint (http/https)
+          PrologDemoWeb.Endpoint
+          # Start a worker by calling: PrologDemo.Worker.start_link(arg)
+          # {PrologDemo.Worker, arg}
+        ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

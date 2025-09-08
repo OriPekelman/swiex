@@ -1,0 +1,163 @@
+<div class="min-h-screen bg-gray-50 py-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900">🔍 Swiex Monitoring Dashboard</h1>
+      <p class="mt-2 text-gray-600">Monitor Prolog session performance and debugging information</p>
+    </div>
+
+    <!-- Controls -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">🎛️ Monitoring Controls</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Debug Toggle -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Debug Mode</label>
+          <div class="flex items-center space-x-3">
+            <button
+              phx-click="toggle_debug"
+              phx-value-enabled={to_string(not @debug_enabled)}
+              class={[
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                if(@debug_enabled, do: "bg-blue-600", else: "bg-gray-200")
+              ]}
+            >
+              <span
+                class={[
+                  "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                  if(@debug_enabled, do: "translate-x-6", else: "translate-x-1")
+                ]}
+              />
+            </button>
+            <span class="text-sm text-gray-600">
+              <%= if @debug_enabled, do: "Enabled", else: "Disabled" %>
+            </span>
+          </div>
+        </div>
+
+        <!-- Rate Limit -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Rate Limit (ms)</label>
+          <div class="flex items-center space-x-2">
+            <input
+              type="number"
+              value={@rate_limit_ms}
+              phx-blur="set_rate_limit"
+              phx-value-rate_limit={@rate_limit_ms}
+              class="w-20 px-3 py-2 border border-gray-300 rounded-md text-sm"
+              min="100"
+              max="10000"
+              step="100"
+            />
+            <span class="text-sm text-gray-600">ms</span>
+          </div>
+        </div>
+
+        <!-- Auto Refresh -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Auto Refresh</label>
+          <div class="flex items-center space-x-3">
+            <button
+              phx-click="toggle_auto_refresh"
+              phx-value-enabled={to_string(not @auto_refresh)}
+              class={[
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                if(@auto_refresh, do: "bg-green-600", else: "bg-gray-200")
+              ]}
+            >
+              <span
+                class={[
+                  "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                  if(@auto_refresh, do: "translate-x-6", else: "translate-x-1")
+                ]}
+              />
+            </button>
+            <span class="text-sm text-gray-600">
+              <%= if @auto_refresh, do: "On", else: "Off" %>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="mt-6 flex space-x-4">
+        <button
+          phx-click="refresh_stats"
+          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+        >
+          🔄 Refresh Now
+        </button>
+        <button
+          phx-click="reset_stats"
+          class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+        >
+          🗑️ Reset Statistics
+        </button>
+      </div>
+    </div>
+
+    <!-- Session Statistics -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- Causal Session -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">🔗 Causal Reasoning Session</h3>
+        <%= render_session_stats(@session_stats["Causal"] || %{}) %>
+      </div>
+
+      <!-- Constraint Session -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">🧩 Constraint Solving Session</h3>
+        <%= render_session_stats(@session_stats["Constraint"] || %{}) %>
+      </div>
+
+      <!-- Playground Session -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">🎯 Prolog Playground Session</h3>
+        <%= render_session_stats(@session_stats["Playground"] || %{}) %>
+      </div>
+
+      <!-- Overall Statistics -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">📊 Overall Statistics</h3>
+        <%= render_overall_stats(@session_stats["Overall"] || %{}) %>
+      </div>
+    </div>
+
+    <!-- Real-time Logs -->
+    <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">📝 Real-time Logs</h3>
+      <div class="bg-gray-900 text-green-400 p-4 rounded-md font-mono text-sm h-64 overflow-y-auto">
+        <div class="text-gray-500">Monitoring logs will appear here when debug mode is enabled...</div>
+        <!-- TODO: Implement real-time log streaming -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Session Statistics -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+  <!-- Causal Session -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">🔗 Causal Reasoning Session</h3>
+    <%= render_session_stats(@session_stats["Causal"] || %{}) %>
+  </div>
+
+  <!-- Constraint Session -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">🧩 Constraint Solving Session</h3>
+    <%= render_session_stats(@session_stats["Constraint"] || %{}) %>
+  </div>
+
+  <!-- Playground Session -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">🎯 Prolog Playground Session</h3>
+    <%= render_session_stats(@session_stats["Playground"] || %{}) %>
+  </div>
+
+  <!-- Overall Statistics -->
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">📊 Overall Statistics</h3>
+    <%= render_overall_stats(@session_stats["Overall"] || %{}) %>
+  </div>
+</div>
