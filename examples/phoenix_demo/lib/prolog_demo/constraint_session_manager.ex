@@ -81,21 +81,37 @@ defmodule PrologDemo.ConstraintSessionManager do
         end
 
       "sudoku" ->
-        # Use the sample Sudoku puzzle
+        # First get the puzzle
+        puzzle_query = "get_sample_sudoku(Puzzle)"
+        puzzle_result = MQI.query(session, puzzle_query)
+
+        puzzle = case puzzle_result do
+          {:ok, [%{"Puzzle" => p} | _]} -> p
+          _ -> nil
+        end
+
+        # Then solve it with monitoring
         query = "get_sample_sudoku(Puzzle), sudoku_solution(Puzzle, Solution)"
 
-        # Monitor the query execution
+        start_time = System.monotonic_time(:millisecond)
         {result, new_monitoring_state} = Monitoring.monitor_query(
           monitoring_state,
           session,
           query,
           fn -> MQI.query(session, query) end
         )
+        end_time = System.monotonic_time(:millisecond)
 
         case result do
-          {:ok, results} ->
-            solutions = Enum.map(results, &(&1["Solution"]))
-            {:reply, {:ok, %{solutions: solutions, count: length(solutions)}}, %{state | monitoring_state: new_monitoring_state}}
+          {:ok, [%{"Solution" => solution} | _]} ->
+            {:reply, {:ok, %{
+              puzzle: puzzle,
+              solution: solution,
+              time_ms: end_time - start_time,
+              count: 1
+            }}, %{state | monitoring_state: new_monitoring_state}}
+          {:ok, _} ->
+            {:reply, {:ok, %{puzzle: puzzle, solution: nil, count: 0}}, %{state | monitoring_state: new_monitoring_state}}
           {:error, reason} ->
             {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
         end

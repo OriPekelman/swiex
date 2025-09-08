@@ -150,13 +150,13 @@ defmodule Swiex.Monitoring do
     avg_time = if state.query_count > 0 do
       state.total_time_ms / state.query_count
     else
-      0
+      0.0
     end
 
     avg_inferences = if state.query_count > 0 do
       state.total_inferences / state.query_count
     else
-      0
+      0.0
     end
 
     %{
@@ -165,8 +165,8 @@ defmodule Swiex.Monitoring do
       query_count: state.query_count,
       total_inferences: state.total_inferences,
       total_time_ms: state.total_time_ms,
-      avg_time_ms: Float.round(avg_time, 2),
-      avg_inferences: Float.round(avg_inferences, 2)
+      avg_time_ms: (if state.query_count > 0, do: Float.round(avg_time, 2), else: 0),
+      avg_inferences: (if state.query_count > 0, do: Float.round(avg_inferences, 2), else: 0)
     }
   end
 

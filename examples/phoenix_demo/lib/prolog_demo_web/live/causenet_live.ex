@@ -262,25 +262,47 @@ defmodule PrologDemoWeb.CauseNetLive do
                           <div class="text-lg font-semibold text-gray-900 mb-2">
                             Sudoku Solution
                           </div>
-                          <div class="text-sm text-gray-600">Found <%= @sudoku_results.count %> solution(s)</div>
+                          <div class="text-sm text-gray-600">Solved in <%= @sudoku_results[:time_ms] || "< 1" %>ms</div>
                         </div>
 
-                        <%= if length(@sudoku_results.solutions) > 0 do %>
-                          <div class="space-y-4">
-                            <%= for {solution, _index} <- Enum.with_index(Enum.take(@sudoku_results.solutions, 1)) do %>
-                              <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                                <div class="font-medium text-green-800 mb-3">Solution:</div>
-                                <div class="grid grid-cols-9 gap-1 text-sm font-mono">
-                                  <%= for row <- solution do %>
-                                    <%= for cell <- row do %>
-                                      <div class="w-6 h-6 flex items-center justify-center border border-gray-300 bg-white text-xs">
-                                        <%= cell %>
-                                      </div>
-                                    <% end %>
+                        <%= if @sudoku_results[:solution] do %>
+                          <div class="flex gap-8 justify-center">
+                            <!-- Original Puzzle -->
+                            <div>
+                              <div class="text-sm font-medium text-gray-700 mb-2 text-center">Puzzle</div>
+                              <div style="display: inline-grid; grid-template-columns: repeat(9, 40px); gap: 0; border: 3px solid #1f2937;">
+                                <%= for {row, row_idx} <- Enum.with_index(@sudoku_results[:puzzle] || List.duplicate(List.duplicate(0, 9), 9)) do %>
+                                  <%= for {cell, col_idx} <- Enum.with_index(row) do %>
+                                    <% border_right = if rem(col_idx + 1, 3) == 0 && col_idx < 8, do: "border-right: 2px solid #1f2937;", else: "border-right: 1px solid #d1d5db;" %>
+                                    <% border_bottom = if rem(row_idx + 1, 3) == 0 && row_idx < 8, do: "border-bottom: 2px solid #1f2937;", else: "border-bottom: 1px solid #d1d5db;" %>
+                                    <div style={"width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; #{border_right} #{border_bottom} background-color: #{if cell == 0, do: "#f9fafb", else: "#e5e7eb"};"}>
+                                      <span style={"font-weight: #{if cell == 0, do: "normal", else: "bold"}; color: #{if cell == 0, do: "#9ca3af", else: "#111827"};"}>
+                                        <%= if cell == 0, do: "", else: cell %>
+                                      </span>
+                                    </div>
                                   <% end %>
-                                </div>
+                                <% end %>
                               </div>
-                            <% end %>
+                            </div>
+                            
+                            <!-- Solution -->
+                            <div>
+                              <div class="text-sm font-medium text-gray-700 mb-2 text-center">Solution</div>
+                              <div style="display: inline-grid; grid-template-columns: repeat(9, 40px); gap: 0; border: 3px solid #1f2937;">
+                                <%= for {row, row_idx} <- Enum.with_index(@sudoku_results[:solution]) do %>
+                                  <%= for {cell, col_idx} <- Enum.with_index(row) do %>
+                                    <% original_cell = Enum.at(Enum.at(@sudoku_results[:puzzle] || List.duplicate(List.duplicate(0, 9), 9), row_idx), col_idx) %>
+                                    <% border_right = if rem(col_idx + 1, 3) == 0 && col_idx < 8, do: "border-right: 2px solid #1f2937;", else: "border-right: 1px solid #d1d5db;" %>
+                                    <% border_bottom = if rem(row_idx + 1, 3) == 0 && row_idx < 8, do: "border-bottom: 2px solid #1f2937;", else: "border-bottom: 1px solid #d1d5db;" %>
+                                    <div style={"width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; #{border_right} #{border_bottom} background-color: #{if original_cell != 0, do: "#e5e7eb", else: "#dcfce7"};"}>
+                                      <span style={"font-weight: bold; color: #{if original_cell != 0, do: "#111827", else: "#166534"};"}>
+                                        <%= cell %>
+                                      </span>
+                                    </div>
+                                  <% end %>
+                                <% end %>
+                              </div>
+                            </div>
                           </div>
                         <% end %>
                       <% else %>
