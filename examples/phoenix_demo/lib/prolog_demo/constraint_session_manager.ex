@@ -152,7 +152,11 @@ defmodule PrologDemo.ConstraintSessionManager do
         end
 
         case MQI.query(active_session, solve_query) do
-          {:ok, [results]} when is_map(results) ->
+          {:ok, results} when is_list(results) and length(results) > 0 ->
+            # Take the first solution when Prolog returns multiple solutions
+            first_result = hd(results)
+            IO.puts("🔧 Prolog found #{length(results)} solutions, using the first one")
+            
             end_time = System.monotonic_time(:millisecond)
             new_monitoring_state = %{monitoring_state |
               query_count: monitoring_state.query_count + 1,
@@ -160,10 +164,10 @@ defmodule PrologDemo.ConstraintSessionManager do
             }
 
             # Extract the PrologSolution matrix and substitute variables with actual values
-            prolog_solution = case Map.get(results, "PrologSolution") do
+            prolog_solution = case Map.get(first_result, "PrologSolution") do
               matrix when is_list(matrix) ->
                 # Substitute alphabetic variables with their actual numeric values
-                substitute_variables_in_matrix(matrix, results)
+                substitute_variables_in_matrix(matrix, first_result)
               other ->
                 IO.puts("⚠️ Unexpected PrologSolution format: #{inspect(other)}")
                 other
