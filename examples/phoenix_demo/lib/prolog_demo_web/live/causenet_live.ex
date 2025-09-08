@@ -714,33 +714,51 @@ valid_move(Grid, Row, Col, N) :-
 
   @impl true
   def handle_info({:solve_sudoku}, socket) do
-    case PrologDemo.ConstraintSessionManager.query_constraint_solver("sudoku", %{}) do
+    # Use a longer timeout for Sudoku solving
+    case GenServer.call(PrologDemo.ConstraintSessionManager, 
+                        {:query_constraint_solver, "sudoku", %{}}, 
+                        60_000) do  # 60 second timeout
       {:ok, solutions} ->
         {:noreply,
          socket
          |> assign(:sudoku_results, solutions)
          |> assign(:sudoku_loading, false)}
       {:error, reason} ->
+        error_msg = case reason do
+          :timeout -> "Sudoku solving timed out. The puzzle may be too complex."
+          :query_timeout -> "Query timed out. Please try again."
+          msg when is_binary(msg) -> "Error solving Sudoku: #{msg}"
+          _ -> "Error solving Sudoku: #{inspect(reason)}"
+        end
         {:noreply,
          socket
          |> assign(:sudoku_loading, false)
-         |> put_flash(:error, "Error solving Sudoku: #{reason}")}
+         |> put_flash(:error, error_msg)}
     end
   end
 
   @impl true
   def handle_info({:solve_n_queens, n}, socket) do
-    case PrologDemo.ConstraintSessionManager.query_constraint_solver("n_queens", %{"n" => n}) do
+    # Use a longer timeout for N-Queens solving
+    case GenServer.call(PrologDemo.ConstraintSessionManager, 
+                        {:query_constraint_solver, "n_queens", %{"n" => n}}, 
+                        60_000) do  # 60 second timeout
       {:ok, solutions} ->
         {:noreply,
          socket
          |> assign(:queens_results, solutions)
          |> assign(:queens_loading, false)}
       {:error, reason} ->
+        error_msg = case reason do
+          :timeout -> "N-Queens solving timed out. Try a smaller board size."
+          :query_timeout -> "Query timed out. Please try again."
+          msg when is_binary(msg) -> "Error solving N-Queens: #{msg}"
+          _ -> "Error solving N-Queens: #{inspect(reason)}"
+        end
         {:noreply,
          socket
          |> assign(:queens_loading, false)
-         |> put_flash(:error, "Error solving N-Queens: #{reason}")}
+         |> put_flash(:error, error_msg)}
     end
   end
 

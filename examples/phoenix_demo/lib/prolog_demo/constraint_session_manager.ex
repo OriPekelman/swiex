@@ -112,26 +112,26 @@ defmodule PrologDemo.ConstraintSessionManager do
 
       "sudoku" ->
         start_time = System.monotonic_time(:millisecond)
-        
+
         # First get the puzzle synchronously (it's fast)
         puzzle_result = MQI.query(session, "sample_sudoku(Puzzle)")
-        
+
         case puzzle_result do
           {:ok, [%{"Puzzle" => puzzle} | _]} ->
             # Use async for the potentially long-running solver
             solve_query = "sample_sudoku(Puzzle), sudoku_solution(Puzzle, Solution)"
-            
+
             case MQI.query_async(session, solve_query, timeout: 30000) do
               {:ok, query_id} ->
                 # Poll for result
                 result = wait_for_async_result(session, query_id, 30000)
                 end_time = System.monotonic_time(:millisecond)
-                
-                new_monitoring_state = %{monitoring_state | 
+
+                new_monitoring_state = %{monitoring_state |
                   query_count: monitoring_state.query_count + 1,
                   total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
                 }
-                
+
                 case result do
                   {:ok, [%{"Solution" => solution} | _]} ->
                     {:reply, {:ok, %{
@@ -140,7 +140,7 @@ defmodule PrologDemo.ConstraintSessionManager do
                       time_ms: end_time - start_time,
                       count: 1
                     }}, %{state | monitoring_state: new_monitoring_state}}
-                    
+
                   _ ->
                     # If async fails, try synchronous as fallback
                     case MQI.query(session, solve_query) do
@@ -161,15 +161,15 @@ defmodule PrologDemo.ConstraintSessionManager do
                         }}, %{state | monitoring_state: new_monitoring_state}}
                     end
                 end
-                
+
               {:error, _reason} ->
                 # Fallback to synchronous query
                 end_time = System.monotonic_time(:millisecond)
-                new_monitoring_state = %{monitoring_state | 
+                new_monitoring_state = %{monitoring_state |
                   query_count: monitoring_state.query_count + 1,
                   total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
                 }
-                
+
                 case MQI.query(session, solve_query) do
                   {:ok, [%{"Solution" => solution} | _]} ->
                     {:reply, {:ok, %{
@@ -188,10 +188,10 @@ defmodule PrologDemo.ConstraintSessionManager do
                     }}, %{state | monitoring_state: new_monitoring_state}}
                 end
             end
-            
+
           {:error, reason} ->
             end_time = System.monotonic_time(:millisecond)
-            new_monitoring_state = %{monitoring_state | 
+            new_monitoring_state = %{monitoring_state |
               query_count: monitoring_state.query_count + 1,
               total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
             }

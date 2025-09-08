@@ -7,7 +7,7 @@ defmodule Swiex.MQI do
   """
 
   @default_host {127, 0, 0, 1}
-  @default_timeout 5000
+  @default_timeout 30000  # Increased to 30 seconds for complex queries
 
   defstruct [
     :socket,
@@ -104,10 +104,13 @@ defmodule Swiex.MQI do
     # Generate a unique query ID
     query_id = generate_query_id()
     timeout = Keyword.get(opts, :timeout, -1)
+    
+    # Use a longer timeout for the initial async request
+    socket_timeout = if timeout > 0, do: timeout + 5000, else: @default_timeout
 
     # Send async query using run_async instead of run
     with :ok <- send_async_query(session.socket, query_id, prolog_query, timeout),
-         {:ok, response} <- recv_response(session.socket) do
+         {:ok, response} <- recv_response(session.socket, socket_timeout) do
       case parse_response(response) do
         {:ok, _} ->
           {:ok, query_id}
@@ -115,7 +118,12 @@ defmodule Swiex.MQI do
           error
       end
     else
-      error -> {:error, error}
+      {:error, :query_timeout} -> 
+        # If initial timeout, try to cancel the query
+        _ = cancel_async(session, query_id)
+        {:error, :async_init_timeout}
+      error -> 
+        {:error, error}
     end
   end
 
