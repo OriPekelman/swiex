@@ -22,7 +22,11 @@ defmodule Swiex.MQI do
     @moduledoc """
     Holds the state for a persistent MQI session.
     """
-    defstruct [:socket, :host, :port, :password, :timeout, :port_ref]
+    defstruct [:socket, :host, :port, :password, :timeout, :port_ref, :async_queries]
+    
+    def new(attrs) do
+      struct(__MODULE__, Keyword.put(attrs, :async_queries, %{}))
+    end
   end
 
   @doc """
@@ -93,31 +97,83 @@ defmodule Swiex.MQI do
 
   @doc """
   Executes a Prolog query asynchronously.
+  Returns a query ID that can be used to retrieve results or cancel the query.
   """
-  @spec query_async(String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
-  def query_async(prolog_query) do
-    # For now, just execute synchronously and return a dummy ID
-    case query(prolog_query) do
-      {:ok, _results} -> {:ok, 1}
-      {:error, reason} -> {:error, reason}
+  @spec query_async(Session.t(), String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
+  def query_async(%Session{} = session, prolog_query, opts \\ []) do
+    # Generate a unique query ID
+    query_id = generate_query_id()
+    timeout = Keyword.get(opts, :timeout, -1)
+    
+    # Send async query using run_async instead of run
+    with :ok <- send_async_query(session.socket, query_id, prolog_query, timeout),
+         {:ok, response} <- recv_response(session.socket) do
+      case parse_response(response) do
+        {:ok, _} -> 
+          {:ok, query_id}
+        error -> 
+          error
+      end
+    else
+      error -> {:error, error}
     end
   end
 
   @doc """
   Get results from an asynchronous query.
+  The timeout specifies how long to wait for results (in ms).
+  Use -1 for blocking until complete, 0 for non-blocking check.
   """
-  @spec get_async_result(non_neg_integer(), integer()) :: {:ok, [map()]} | {:error, term()}
-  def get_async_result(_query_id, _timeout \\ -1) do
-    # For now, return empty results
-    {:ok, []}
+  @spec get_async_result(Session.t(), String.t(), integer()) :: {:ok, [map()]} | {:pending, nil} | {:error, term()}
+  def get_async_result(%Session{} = session, query_id, timeout \\ -1) do
+    # Send async_result request
+    with :ok <- send_async_result_request(session.socket, query_id, timeout),
+         {:ok, response} <- recv_response(session.socket, max(timeout, 5000)) do
+      case parse_response(response) do
+        {:ok, [%{"functor" => "no_more_results"}]} ->
+          {:ok, nil}
+        {:ok, [%{"functor" => "result_not_available"}]} ->
+          {:pending, nil}
+        {:ok, results} ->
+          {:ok, results}
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      {:error, :timeout} -> {:pending, nil}
+      error -> {:error, error}
+    end
   end
 
   @doc """
   Cancel an asynchronous query.
   """
-  @spec cancel_async(non_neg_integer()) :: :ok | {:error, term()}
-  def cancel_async(_query_id) do
-    :ok
+  @spec cancel_async(Session.t(), String.t()) :: :ok | {:error, term()}
+  def cancel_async(%Session{} = session, query_id) do
+    # Send cancel_async request
+    with :ok <- send_cancel_async_request(session.socket, query_id),
+         {:ok, response} <- recv_response(session.socket) do
+      case parse_response(response) do
+        {:ok, _} -> :ok
+        error -> error
+      end
+    else
+      error -> {:error, error}
+    end
+  end
+
+  @doc """
+  Check if an async query is still running.
+  """
+  @spec async_query_status(Session.t(), String.t()) :: :running | :completed | :failed | :not_found
+  def async_query_status(%Session{} = session, query_id) do
+    # Use get_async_result with timeout 0 to check status
+    case get_async_result(session, query_id, 0) do
+      {:pending, _} -> :running
+      {:ok, nil} -> :completed
+      {:ok, _} -> :running  # Still has results
+      {:error, _} -> :failed
+    end
   end
 
   @doc """
@@ -247,7 +303,7 @@ defmodule Swiex.MQI do
               :ok ->
                 case recv_response(socket) do
                   {:ok, _auth_response} ->
-                    {:ok, %Session{socket: socket, host: host, port: port, password: password, timeout: timeout, port_ref: port_ref}}
+                    {:ok, Session.new(socket: socket, host: host, port: port, password: password, timeout: timeout, port_ref: port_ref)}
                   {:error, reason} ->
                     :gen_tcp.close(socket)
                     Port.close(port_ref)  # ✅ Clean up on auth failure
@@ -400,6 +456,43 @@ defmodule Swiex.MQI do
     packet = length_str <> message
     IO.puts("[MQI] Sending query: #{inspect(packet)}")
     :gen_tcp.send(socket, packet)
+  end
+
+  defp send_async_query(socket, query_id, query, timeout) do
+    # Format: run_async(Goal, Timeout, QueryID)
+    clean_query = String.trim_trailing(String.trim(query), ".")
+    
+    formatted_query = if String.contains?(clean_query, ",") do
+      "(#{clean_query})"
+    else
+      clean_query
+    end
+
+    message = "run_async(#{formatted_query}, #{timeout}, '#{query_id}').\n"
+    length_str = "#{byte_size(message)}.\n"
+    packet = length_str <> message
+    IO.puts("[MQI] Sending async query: #{inspect(packet)}")
+    :gen_tcp.send(socket, packet)
+  end
+
+  defp send_async_result_request(socket, query_id, timeout) do
+    message = "async_result('#{query_id}', #{timeout}).\n"
+    length_str = "#{byte_size(message)}.\n"
+    packet = length_str <> message
+    IO.puts("[MQI] Requesting async result: #{inspect(packet)}")
+    :gen_tcp.send(socket, packet)
+  end
+
+  defp send_cancel_async_request(socket, query_id) do
+    message = "cancel_async('#{query_id}').\n"
+    length_str = "#{byte_size(message)}.\n"
+    packet = length_str <> message
+    IO.puts("[MQI] Cancelling async query: #{inspect(packet)}")
+    :gen_tcp.send(socket, packet)
+  end
+
+  defp generate_query_id do
+    "query_#{:erlang.unique_integer([:positive, :monotonic])}_#{System.system_time(:microsecond)}"
   end
 
   defp recv_response(socket, timeout \\ @default_timeout) do
