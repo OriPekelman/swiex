@@ -112,7 +112,7 @@ defmodule PrologDemo.ConstraintSessionManager do
 
       "sudoku" ->
         start_time = System.monotonic_time(:millisecond)
-        
+
         # Simplified approach - just try to verify the puzzle is loaded
         # The puzzle is hardcoded in Prolog, so we'll use it directly
         default_puzzle = [
@@ -126,42 +126,42 @@ defmodule PrologDemo.ConstraintSessionManager do
           [0,0,0,4,1,9,0,0,5],
           [0,0,0,0,8,0,0,7,9]
         ]
-        
+
         # Try to solve using a simple, direct query
         # We'll test if the Sudoku rules are working first
         test_query = "get_cell([[1,2,3],[4,5,6],[7,8,9]], 1, 1, V)"
-        
+
         case MQI.query(session, test_query) do
           {:ok, [%{"V" => 5}]} ->
             IO.puts("✅ Sudoku helper functions working")
-            
+
             # Now try the actual solver with a simpler approach
             # Use copy_term to avoid modifying the original
             solve_query = "sample_sudoku(P), copy_term(P, S), sudoku_solve(S)"
-            
+
             case MQI.query(session, solve_query) do
               {:ok, [%{"S" => solution} | _]} ->
                 end_time = System.monotonic_time(:millisecond)
-                new_monitoring_state = %{monitoring_state | 
+                new_monitoring_state = %{monitoring_state |
                   query_count: monitoring_state.query_count + 1,
                   total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
                 }
-                
+
                 {:reply, {:ok, %{
                   puzzle: default_puzzle,
                   solution: solution,
                   time_ms: end_time - start_time,
                   count: 1
                 }}, %{state | monitoring_state: new_monitoring_state}}
-                
+
               other ->
                 IO.puts("Sudoku solve result: #{inspect(other)}")
                 end_time = System.monotonic_time(:millisecond)
-                new_monitoring_state = %{monitoring_state | 
+                new_monitoring_state = %{monitoring_state |
                   query_count: monitoring_state.query_count + 1,
                   total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
                 }
-                
+
                 # Return the puzzle without solution
                 {:reply, {:ok, %{
                   puzzle: default_puzzle,
@@ -171,15 +171,15 @@ defmodule PrologDemo.ConstraintSessionManager do
                   error: "Could not solve the puzzle - solver may need debugging"
                 }}, %{state | monitoring_state: new_monitoring_state}}
             end
-            
+
           test_result ->
             IO.puts("Test query failed: #{inspect(test_result)}")
             end_time = System.monotonic_time(:millisecond)
-            new_monitoring_state = %{monitoring_state | 
+            new_monitoring_state = %{monitoring_state |
               query_count: monitoring_state.query_count + 1,
               total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
             }
-            
+
             {:reply, {:error, "Sudoku rules not properly loaded"}, %{state | monitoring_state: new_monitoring_state}}
         end
 
@@ -343,22 +343,27 @@ defmodule PrologDemo.ConstraintSessionManager do
     sudoku_solve(Grid) :-
         sudoku_solve_cell(Grid, 0, 0).
 
-    sudoku_solve_cell(Grid, 9, _) :- !.
+    sudoku_solve_cell(_, 9, _) :- !.
     sudoku_solve_cell(Grid, Row, 9) :-
         NextRow is Row + 1,
         sudoku_solve_cell(Grid, NextRow, 0).
+    
+    % Case 1: Cell already has a value
     sudoku_solve_cell(Grid, Row, Col) :-
         get_cell(Grid, Row, Col, Value),
-        (Value > 0 ->
-            NextCol is Col + 1,
-            sudoku_solve_cell(Grid, Row, NextCol)
-        ;
-            between(1, 9, N),
-            valid_move(Grid, Row, Col, N),
-            set_cell(Grid, Row, Col, N, NewGrid),
-            NextCol is Col + 1,
-            sudoku_solve_cell(NewGrid, Row, NextCol)
-        ).
+        Value > 0,
+        !,
+        NextCol is Col + 1,
+        sudoku_solve_cell(Grid, Row, NextCol).
+    
+    % Case 2: Cell is empty, try values 1-9
+    sudoku_solve_cell(Grid, Row, Col) :-
+        get_cell(Grid, Row, Col, 0),
+        between(1, 9, N),
+        valid_move(Grid, Row, Col, N),
+        set_cell(Grid, Row, Col, N, NewGrid),
+        NextCol is Col + 1,
+        sudoku_solve_cell(NewGrid, Row, NextCol).
 
     get_cell(Grid, Row, Col, Value) :-
         nth0(Row, Grid, RowList),
@@ -382,24 +387,24 @@ defmodule PrologDemo.ConstraintSessionManager do
 
     valid_row(Grid, Row, N) :-
         nth0(Row, Grid, RowList),
-        \+ member(N, RowList).
+        \\+ member(N, RowList).
 
     valid_col(Grid, Col, N) :-
         maplist(nth0(Col), Grid, ColList),
-        \+ member(N, ColList).
+        \\+ member(N, ColList).
 
     valid_box(Grid, Row, Col, N) :-
         BoxRow is (Row // 3) * 3,
         BoxCol is (Col // 3) * 3,
         get_box(Grid, BoxRow, BoxCol, Box),
-        \+ member(N, Box).
+        \\+ member(N, Box).
 
     get_box(Grid, StartRow, StartCol, Box) :-
         findall(Value,
             (between(0, 2, R),
              between(0, 2, C),
-             Row is (StartRow + R),
-             Col is (StartCol + C),
+             Row is StartRow + R,
+             Col is StartCol + C,
              get_cell(Grid, Row, Col, Value)),
             Box).
 
@@ -414,7 +419,7 @@ defmodule PrologDemo.ConstraintSessionManager do
     """
 
     case MQI.consult_string(session, sudoku_code) do
-      {:ok, _} -> 
+      {:ok, _} ->
         IO.puts("✅ Loaded Sudoku solver")
         # Test that the sample puzzle is loaded correctly
         case MQI.query(session, "sample_sudoku(P)") do
@@ -425,7 +430,7 @@ defmodule PrologDemo.ConstraintSessionManager do
           other ->
             IO.puts("⚠️  Unexpected result from sample puzzle: #{inspect(other)}")
         end
-      {:error, reason} -> 
+      {:error, reason} ->
         IO.puts("❌ Failed to load Sudoku solver: #{reason}")
     end
   end
