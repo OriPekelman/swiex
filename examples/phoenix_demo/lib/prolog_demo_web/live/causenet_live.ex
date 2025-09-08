@@ -227,7 +227,7 @@ defmodule PrologDemoWeb.CauseNetLive do
                       Each row, column, and 3×3 box must contain all digits from 1 to 9 exactly once.
                     </p>
                   </div>
-                  
+
                   <div class="flex justify-center">
                     <button
                       phx-click="solve_sudoku"
@@ -236,7 +236,7 @@ defmodule PrologDemoWeb.CauseNetLive do
                       🧩 Solve Sudoku
                     </button>
                   </div>
-                  
+
                   <!-- Always show the puzzle grid -->
                   <div class="flex justify-center">
                     <div>
@@ -267,7 +267,7 @@ defmodule PrologDemoWeb.CauseNetLive do
                       </div>
                     </div>
                   </div>
-                  
+
                   <div>
                     <%= if @sudoku_loading do %>
                       <div class="text-center py-8">

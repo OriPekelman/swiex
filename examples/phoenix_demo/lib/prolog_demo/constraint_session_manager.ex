@@ -53,38 +53,150 @@ defmodule PrologDemo.ConstraintSessionManager do
     case puzzle_type do
       "n_queens" ->
         n = Map.get(params, "n", 4)
-        # Return hardcoded solutions for common N values to avoid MQI issues
-        solutions = get_n_queens_solutions(n)
 
         start_time = System.monotonic_time(:millisecond)
-        :timer.sleep(20 * n) # Simulate computation time based on N
-        end_time = System.monotonic_time(:millisecond)
 
-        new_monitoring_state = %{monitoring_state |
-          query_count: monitoring_state.query_count + 1,
-          total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
-        }
+        # Use async query for potentially long-running N-Queens
+        query = "setof(Solution, n_queens(#{n}, Solution), Solutions)"
 
-        {:reply, {:ok, %{
-          n: n,
-          solutions: solutions,
-          count: length(solutions),
-          display_limit: 10  # Suggest displaying first 10
-        }}, %{state | monitoring_state: new_monitoring_state}}
+        case MQI.query_async(session, query, timeout: 10000) do
+          {:ok, query_id} ->
+            # Poll for result
+            result = wait_for_async_result(session, query_id, 10000)
+            end_time = System.monotonic_time(:millisecond)
+
+            new_monitoring_state = %{monitoring_state |
+              query_count: monitoring_state.query_count + 1,
+              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+            }
+
+            case result do
+              {:ok, results} ->
+                # Extract all solutions from setof result
+                solutions = case results do
+                  [%{"Solutions" => sols}] when is_list(sols) -> sols
+                  _ -> []
+                end
+
+                {:reply, {:ok, %{
+                  n: n,
+                  solutions: Enum.take(solutions, 10),  # Limit display to 10
+                  count: length(solutions),
+                  display_limit: 10
+                }}, %{state | monitoring_state: new_monitoring_state}}
+
+              {:error, _reason} ->
+                # Fallback to synchronous query with limited results
+                case MQI.query(session, "n_queens(#{n}, Solution)") do
+                  {:ok, results} ->
+                    solutions = Enum.map(results, fn %{"Solution" => s} -> s end) |> Enum.take(10)
+                    {:reply, {:ok, %{
+                      n: n,
+                      solutions: solutions,
+                      count: length(solutions),
+                      display_limit: 10
+                    }}, %{state | monitoring_state: new_monitoring_state}}
+                  {:error, reason} ->
+                    {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
+                end
+            end
+
+          {:error, reason} ->
+            end_time = System.monotonic_time(:millisecond)
+            new_monitoring_state = %{monitoring_state |
+              query_count: monitoring_state.query_count + 1,
+              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+            }
+            {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
+        end
 
       "sudoku" ->
-        # For demo purposes, return hardcoded solution
-        # The MQI has issues with large nested list structures
         start_time = System.monotonic_time(:millisecond)
-        :timer.sleep(50) # Simulate computation
-        end_time = System.monotonic_time(:millisecond)
-
-        new_monitoring_state = %{monitoring_state |
-          query_count: monitoring_state.query_count + 1,
-          total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
-        }
-
-        {:reply, {:ok, get_hardcoded_sudoku_solution()}, %{state | monitoring_state: new_monitoring_state}}
+        
+        # First get the puzzle synchronously (it's fast)
+        puzzle_result = MQI.query(session, "sample_sudoku(Puzzle)")
+        
+        case puzzle_result do
+          {:ok, [%{"Puzzle" => puzzle} | _]} ->
+            # Use async for the potentially long-running solver
+            solve_query = "sample_sudoku(Puzzle), sudoku_solution(Puzzle, Solution)"
+            
+            case MQI.query_async(session, solve_query, timeout: 30000) do
+              {:ok, query_id} ->
+                # Poll for result
+                result = wait_for_async_result(session, query_id, 30000)
+                end_time = System.monotonic_time(:millisecond)
+                
+                new_monitoring_state = %{monitoring_state | 
+                  query_count: monitoring_state.query_count + 1,
+                  total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+                }
+                
+                case result do
+                  {:ok, [%{"Solution" => solution} | _]} ->
+                    {:reply, {:ok, %{
+                      puzzle: puzzle,
+                      solution: solution,
+                      time_ms: end_time - start_time,
+                      count: 1
+                    }}, %{state | monitoring_state: new_monitoring_state}}
+                    
+                  _ ->
+                    # If async fails, try synchronous as fallback
+                    case MQI.query(session, solve_query) do
+                      {:ok, [%{"Solution" => solution} | _]} ->
+                        {:reply, {:ok, %{
+                          puzzle: puzzle,
+                          solution: solution,
+                          time_ms: end_time - start_time,
+                          count: 1
+                        }}, %{state | monitoring_state: new_monitoring_state}}
+                      _ ->
+                        {:reply, {:ok, %{
+                          puzzle: puzzle,
+                          solution: nil,
+                          time_ms: end_time - start_time,
+                          count: 0,
+                          error: "Could not solve the puzzle"
+                        }}, %{state | monitoring_state: new_monitoring_state}}
+                    end
+                end
+                
+              {:error, _reason} ->
+                # Fallback to synchronous query
+                end_time = System.monotonic_time(:millisecond)
+                new_monitoring_state = %{monitoring_state | 
+                  query_count: monitoring_state.query_count + 1,
+                  total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+                }
+                
+                case MQI.query(session, solve_query) do
+                  {:ok, [%{"Solution" => solution} | _]} ->
+                    {:reply, {:ok, %{
+                      puzzle: puzzle,
+                      solution: solution,
+                      time_ms: end_time - start_time,
+                      count: 1
+                    }}, %{state | monitoring_state: new_monitoring_state}}
+                  _ ->
+                    {:reply, {:ok, %{
+                      puzzle: puzzle,
+                      solution: nil,
+                      time_ms: end_time - start_time,
+                      count: 0,
+                      error: "Could not solve the puzzle"
+                    }}, %{state | monitoring_state: new_monitoring_state}}
+                end
+            end
+            
+          {:error, reason} ->
+            end_time = System.monotonic_time(:millisecond)
+            new_monitoring_state = %{monitoring_state | 
+              query_count: monitoring_state.query_count + 1,
+              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+            }
+            {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
+        end
 
       _ ->
         {:reply, {:error, "Unknown puzzle type: #{puzzle_type}"}, state}
@@ -117,87 +229,6 @@ defmodule PrologDemo.ConstraintSessionManager do
     end
   end
 
-  defp get_hardcoded_sudoku_solution do
-    %{
-      puzzle: [
-        [5,3,0,0,7,0,0,0,0],
-        [6,0,0,1,9,5,0,0,0],
-        [0,9,8,0,0,0,0,6,0],
-        [8,0,0,0,6,0,0,0,3],
-        [4,0,0,8,0,3,0,0,1],
-        [7,0,0,0,2,0,0,0,6],
-        [0,6,0,0,0,0,2,8,0],
-        [0,0,0,4,1,9,0,0,5],
-        [0,0,0,0,8,0,0,7,9]
-      ],
-      solution: [
-        [5,3,4,6,7,8,9,1,2],
-        [6,7,2,1,9,5,3,4,8],
-        [1,9,8,3,4,2,5,6,7],
-        [8,5,9,7,6,1,4,2,3],
-        [4,2,6,8,5,3,7,9,1],
-        [7,1,3,9,2,4,8,5,6],
-        [9,6,1,5,3,7,2,8,4],
-        [2,8,7,4,1,9,6,3,5],
-        [3,4,5,2,8,6,1,7,9]
-      ],
-      time_ms: 50,
-      count: 1
-    }
-  end
-
-  defp get_n_queens_solutions(n) do
-    case n do
-      4 -> [[2,4,1,3], [3,1,4,2]]
-      5 -> [[1,3,5,2,4], [1,4,2,5,3], [2,4,1,3,5], [2,5,3,1,4], [3,1,4,2,5],
-            [3,5,2,4,1], [4,1,3,5,2], [4,2,5,3,1], [5,2,4,1,3], [5,3,1,4,2]]
-      6 -> [[2,4,6,1,3,5], [3,6,2,5,1,4], [4,1,5,2,6,3], [5,3,1,6,4,2]]
-      7 -> [[1,3,5,7,2,4,6], [1,4,7,3,6,2,5], [1,5,2,6,3,7,4], [1,6,4,2,7,5,3],
-            [2,4,1,7,5,3,6], [2,4,6,1,3,5,7], [2,5,1,4,7,3,6], [2,5,3,1,7,4,6],
-            [2,5,7,4,1,3,6], [2,6,3,7,4,1,5], [2,7,5,3,1,6,4], [3,1,6,2,5,7,4],
-            [3,1,6,4,2,7,5], [3,5,7,2,4,6,1], [3,6,2,5,1,4,7], [3,7,2,4,6,1,5],
-            [3,7,4,1,5,2,6], [4,1,3,6,2,7,5], [4,1,5,2,6,3,7], [4,1,7,2,6,3,5],
-            [4,2,7,3,6,1,5], [4,6,1,3,5,7,2], [4,6,1,5,2,7,3], [4,7,1,6,2,5,3],
-            [4,7,3,6,2,5,1], [4,7,5,2,6,1,3], [5,1,4,7,3,6,2], [5,1,6,4,2,7,3],
-            [5,2,4,6,1,3,7], [5,2,4,7,3,1,6], [5,2,6,3,7,4,1], [5,3,1,6,4,2,7],
-            [5,3,6,2,7,1,4], [5,7,2,4,6,1,3], [5,7,2,6,3,1,4], [6,1,3,5,7,2,4],
-            [6,2,5,1,4,7,3], [6,3,1,4,7,5,2], [6,3,5,7,1,4,2], [6,4,2,7,5,3,1],
-            [6,4,7,1,3,5,2], [7,2,4,6,1,3,5], [7,3,6,2,5,1,4], [7,4,1,5,2,6,3],
-            [7,5,3,1,6,4,2]]
-      8 -> Enum.take([[1,5,8,6,3,7,2,4], [1,6,8,3,7,4,2,5], [1,7,4,6,8,2,5,3],
-            [1,7,5,8,2,4,6,3], [2,4,6,8,3,1,7,5], [2,5,7,1,3,8,6,4],
-            [2,5,7,4,1,8,6,3], [2,6,1,7,4,8,3,5], [2,6,8,3,1,4,7,5],
-            [2,7,3,6,8,5,1,4], [2,7,5,8,1,4,6,3], [2,8,6,1,3,5,7,4],
-            [3,1,7,5,8,2,4,6], [3,5,2,8,1,7,4,6], [3,5,2,8,6,4,7,1],
-            [3,5,7,1,4,2,8,6], [3,5,8,4,1,7,2,6], [3,6,2,5,8,1,7,4],
-            [3,6,2,7,1,4,8,5], [3,6,2,7,5,1,8,4], [3,6,4,1,8,5,7,2],
-            [3,6,4,2,8,5,7,1], [3,6,8,1,4,7,5,2], [3,6,8,1,5,7,2,4],
-            [3,6,8,2,4,1,7,5], [3,7,2,8,5,1,4,6], [3,7,2,8,6,4,1,5],
-            [3,8,4,7,1,6,2,5], [4,1,5,8,2,7,3,6], [4,1,5,8,6,3,7,2],
-            [4,2,5,8,6,1,3,7], [4,2,7,3,6,8,1,5], [4,2,7,3,6,8,5,1],
-            [4,2,7,5,1,8,6,3], [4,2,8,5,7,1,3,6], [4,2,8,6,1,3,5,7],
-            [4,6,1,5,2,8,3,7], [4,6,8,2,7,1,3,5], [4,6,8,3,1,7,5,2],
-            [4,7,1,8,5,2,6,3], [4,7,3,8,2,5,1,6], [4,7,5,2,6,1,3,8],
-            [4,7,5,3,1,6,8,2], [4,8,1,3,6,2,7,5], [4,8,1,5,7,2,6,3],
-            [4,8,5,3,1,7,2,6], [5,1,4,6,8,2,7,3], [5,1,8,4,2,7,3,6],
-            [5,1,8,6,3,7,2,4], [5,2,4,6,8,3,1,7], [5,2,4,7,3,8,6,1],
-            [5,2,6,1,7,4,8,3], [5,2,8,1,4,7,3,6], [5,3,1,6,8,2,4,7],
-            [5,3,1,7,2,8,6,4], [5,3,8,4,7,1,6,2], [5,7,1,3,8,6,4,2],
-            [5,7,1,4,2,8,6,3], [5,7,2,4,8,1,3,6], [5,7,2,6,3,1,4,8],
-            [5,7,2,6,3,1,8,4], [5,7,4,1,3,8,6,2], [5,8,4,1,3,6,2,7],
-            [5,8,4,1,7,2,6,3], [6,1,5,2,8,3,7,4], [6,2,7,1,3,5,8,4],
-            [6,2,7,1,4,8,5,3], [6,3,1,7,5,8,2,4], [6,3,1,8,4,2,7,5],
-            [6,3,1,8,5,2,4,7], [6,3,5,7,1,4,2,8], [6,3,5,8,1,4,2,7],
-            [6,3,7,2,4,8,1,5], [6,3,7,2,8,5,1,4], [6,3,7,4,1,8,2,5],
-            [6,4,1,5,8,2,7,3], [6,4,2,8,5,7,1,3], [6,4,7,1,3,5,2,8],
-            [6,4,7,1,8,2,5,3], [6,8,2,4,1,7,5,3], [7,1,3,8,6,4,2,5],
-            [7,2,4,1,8,5,3,6], [7,2,6,3,1,4,8,5], [7,3,1,6,8,5,2,4],
-            [7,3,8,2,5,1,6,4], [7,4,2,5,8,1,3,6], [7,4,2,8,6,1,3,5],
-            [7,5,3,1,6,8,2,4], [8,2,4,1,7,5,3,6], [8,2,5,3,1,7,4,6],
-            [8,3,1,6,2,5,7,4], [8,4,1,3,6,2,7,5]], 92)
-      _ -> []
-    end
-  end
 
   def handle_call({:load_facts_with_progress, pid}, _from, %{session: session} = state) do
     # Send progress updates to the LiveView
@@ -382,8 +413,8 @@ defmodule PrologDemo.ConstraintSessionManager do
         findall(Value,
             (between(0, 2, R),
              between(0, 2, C),
-             Row is StartRow + R,
-             Col is StartCol + C,
+             Row is (StartRow + R),
+             Col is (StartCol + C),
              get_cell(Grid, Row, Col, Value)),
             Box).
 
