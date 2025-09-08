@@ -53,9 +53,6 @@ defmodule Swiex.Security do
     |> String.replace("\"", "\\\"")
   end
 
-  @doc """
-  Checks if a query contains potentially dangerous patterns.
-  """
   @spec contains_dangerous_patterns?(String.t()) :: boolean()
   defp contains_dangerous_patterns?(query) do
     query_lower = String.downcase(query)

@@ -135,29 +135,3 @@
   </div>
 </div>
 
-<!-- Session Statistics -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-  <!-- Causal Session -->
-  <div class="bg-white rounded-lg shadow-md p-6">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">🔗 Causal Reasoning Session</h3>
-    <%= render_session_stats(@session_stats["Causal"] || %{}) %>
-  </div>
-
-  <!-- Constraint Session -->
-  <div class="bg-white rounded-lg shadow-md p-6">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">🧩 Constraint Solving Session</h3>
-    <%= render_session_stats(@session_stats["Constraint"] || %{}) %>
-  </div>
-
-  <!-- Playground Session -->
-  <div class="bg-white rounded-lg shadow-md p-6">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">🎯 Prolog Playground Session</h3>
-    <%= render_session_stats(@session_stats["Playground"] || %{}) %>
-  </div>
-
-  <!-- Overall Statistics -->
-  <div class="bg-white rounded-lg shadow-md p-6">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">📊 Overall Statistics</h3>
-    <%= render_overall_stats(@session_stats["Overall"] || %{}) %>
-  </div>
-</div>

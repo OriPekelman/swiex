@@ -13,16 +13,21 @@ defmodule PrologDemo.ConstraintSessionManager do
   end
 
   def init(_state) do
+    IO.puts("🟡 ConstraintSessionManager starting up...")
+    
     case MQI.start_session() do
       {:ok, session} ->
+        IO.puts("✅ ConstraintSessionManager MQI session started successfully")
         # Initialize monitoring state
         monitoring_state = Monitoring.init(debug_enabled: false, rate_limit_ms: 1000)
 
         # Load only constraint solving rules
         load_constraint_rules(session)
 
+        IO.puts("✅ ConstraintSessionManager initialization completed")
         {:ok, %{session: session, loaded: true, monitoring_state: monitoring_state}}
       {:error, reason} ->
+        IO.puts("❌ ConstraintSessionManager failed to start MQI session: #{reason}")
         {:stop, {:error, "Failed to start MQI session: #{reason}"}}
     end
   end
@@ -52,116 +57,183 @@ defmodule PrologDemo.ConstraintSessionManager do
   def handle_call({:query_constraint_solver, puzzle_type, params}, _from, %{session: session, monitoring_state: monitoring_state} = state) do
     case puzzle_type do
       "n_queens" ->
-        n = Map.get(params, "n", 4)
-        
+        n = Map.get(params, "n", 8)  # Default to 8x8 board
+
         start_time = System.monotonic_time(:millisecond)
-        
-        # Use synchronous query - MQI doesn't support async at protocol level
-        query = "setof(Solution, n_queens(#{n}, Solution), Solutions)"
-        
+
+        IO.puts("🔥 Solving #{n}-Queens using CLP(FD)!")
+
+        # Use the CLP(FD) solver to find all solutions (limited to first 20)
+        query = "find_n_queens_solutions(#{n}, Solutions)"
+
         result = MQI.query(session, query)
         end_time = System.monotonic_time(:millisecond)
-        
-        new_monitoring_state = %{monitoring_state | 
+
+        new_monitoring_state = %{monitoring_state |
           query_count: monitoring_state.query_count + 1,
           total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
         }
-        
+
         case result do
           {:ok, [%{"Solutions" => solutions}]} when is_list(solutions) ->
+            IO.puts("✅ CLP(FD) found #{length(solutions)} solutions for #{n}-Queens")
             {:reply, {:ok, %{
               n: n,
-              solutions: Enum.take(solutions, 10),  # Limit display to 10
+              solutions: Enum.take(solutions, 10),  # Display first 10
               count: length(solutions),
-              display_limit: 10
+              display_limit: 10,
+              solver_type: "clp_fd",
+              note: "🚀 Solved using Constraint Logic Programming!"
             }}, %{state | monitoring_state: new_monitoring_state}}
-            
-          _ ->
-            # Fallback: get first 10 individual solutions
-            case MQI.query(session, "n_queens(#{n}, Solution)") do
-              {:ok, results} when is_list(results) ->
-                solutions = Enum.map(results, fn %{"Solution" => s} -> s end) |> Enum.take(10)
+
+          {:error, reason} ->
+            IO.puts("❌ CLP(FD) N-Queens solver failed: #{inspect(reason)}")
+            # Try a single solution as fallback
+            case MQI.query(session, "n_queens_solve(#{n}, Solution)") do
+              {:ok, [%{"Solution" => solution}]} ->
+                IO.puts("✅ Got single CLP solution as fallback")
                 {:reply, {:ok, %{
                   n: n,
-                  solutions: solutions,
-                  count: length(solutions),
-                  display_limit: 10
+                  solutions: [solution],
+                  count: 1,
+                  display_limit: 1,
+                  solver_type: "clp_fd_single",
+                  note: "Single solution from CLP(FD)"
                 }}, %{state | monitoring_state: new_monitoring_state}}
-              {:error, reason} ->
-                {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
+              
+              {:error, single_error} ->
+                IO.puts("❌ Single solution also failed: #{inspect(single_error)}")
+                {:reply, {:error, "N-Queens CLP solver failed: #{inspect(reason)}, Single: #{inspect(single_error)}"}, 
+                 %{state | monitoring_state: new_monitoring_state}}
             end
+
+          other ->
+            IO.puts("⚠️ Unexpected N-Queens result: #{inspect(other)}")
+            {:reply, {:error, "Unexpected result: #{inspect(other)}"}, %{state | monitoring_state: new_monitoring_state}}
         end
 
       "sudoku" ->
         start_time = System.monotonic_time(:millisecond)
 
-        # Simplified approach - just try to verify the puzzle is loaded
-        # The puzzle is hardcoded in Prolog, so we'll use it directly
-        default_puzzle = [
-          [5,3,0,0,7,0,0,0,0],
-          [6,0,0,1,9,5,0,0,0],
-          [0,9,8,0,0,0,0,6,0],
-          [8,0,0,0,6,0,0,0,3],
-          [4,0,0,8,0,3,0,0,1],
-          [7,0,0,0,2,0,0,0,6],
-          [0,6,0,0,0,0,2,8,0],
-          [0,0,0,4,1,9,0,0,5],
-          [0,0,0,0,8,0,0,7,9]
-        ]
+        # 🚀 ELIXIR INTEGRATION: Generate random 9x9 puzzle on Elixir side!
+        {elixir_puzzle, elixir_solution} = PrologDemo.SudokuGenerator.generate_9x9_puzzle()
+        
+        # Validate the Elixir-generated solution
+        is_valid = PrologDemo.SudokuGenerator.validate_solution(elixir_solution)
+        
+        IO.puts("🔥 Generated new 9x9 Sudoku puzzle in Elixir!")
+        IO.puts("📊 Elixir validation: #{if is_valid, do: "✅ Valid", else: "❌ Invalid"}")
 
-        # Try to solve using a simple, direct query
-        # We'll test if the Sudoku rules are working first
-        test_query = "get_cell([[1,2,3],[4,5,6],[7,8,9]], 1, 1, V)"
-
-        case MQI.query(session, test_query) do
-          {:ok, [%{"V" => 5}]} ->
-            IO.puts("✅ Sudoku helper functions working")
-
-            # Now try the actual solver using sudoku_solution which handles copying
-            solve_query = "sample_sudoku(P), sudoku_solution(P, S)"
-            
-            case MQI.query(session, solve_query) do
-              {:ok, [%{"P" => puzzle, "S" => solution} | _]} ->
-                end_time = System.monotonic_time(:millisecond)
-                new_monitoring_state = %{monitoring_state | 
-                  query_count: monitoring_state.query_count + 1,
-                  total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
-                }
-                
-                {:reply, {:ok, %{
-                  puzzle: default_puzzle,
-                  solution: solution,
-                  time_ms: end_time - start_time,
-                  count: 1
-                }}, %{state | monitoring_state: new_monitoring_state}}
-
-              other ->
-                IO.puts("Sudoku solve result: #{inspect(other)}")
-                end_time = System.monotonic_time(:millisecond)
-                new_monitoring_state = %{monitoring_state |
-                  query_count: monitoring_state.query_count + 1,
-                  total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
-                }
-
-                # Return the puzzle without solution
-                {:reply, {:ok, %{
-                  puzzle: default_puzzle,
-                  solution: nil,
-                  time_ms: end_time - start_time,
-                  count: 0,
-                  error: "Could not solve the puzzle - solver may need debugging"
-                }}, %{state | monitoring_state: new_monitoring_state}}
+        # 🎯 PROLOG INTEGRATION: Solve the Elixir-generated puzzle using CLP(FD)!
+        puzzle_str = format_puzzle_for_prolog(elixir_puzzle)
+        solve_query = "solve_sudoku_puzzle(#{puzzle_str}, PrologSolution)"
+        
+        IO.puts("🔥 Solving with Prolog CLP(FD): #{solve_query}")
+        
+        # Test if the MQI session is still active and restart if needed
+        {active_session, updated_state} = case MQI.query(session, "true") do
+          {:ok, _} -> 
+            IO.puts("✅ MQI session is active")
+            {session, state}
+          {:error, reason} -> 
+            IO.puts("❌ MQI session test failed: #{inspect(reason)}")
+            # Try to restart the session
+            case MQI.start_session() do
+              {:ok, new_session} ->
+                IO.puts("✅ Restarted MQI session")
+                # Reload all constraint rules
+                load_constraint_rules(new_session)
+                # Return updated session and state
+                {new_session, %{state | session: new_session}}
+              {:error, restart_error} ->
+                IO.puts("❌ Failed to restart MQI session: #{inspect(restart_error)}")
+                {session, state}
             end
+        end
 
-          test_result ->
-            IO.puts("Test query failed: #{inspect(test_result)}")
+        case MQI.query(active_session, solve_query) do
+          {:ok, [results]} when is_map(results) ->
             end_time = System.monotonic_time(:millisecond)
             new_monitoring_state = %{monitoring_state |
               query_count: monitoring_state.query_count + 1,
               total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
             }
 
-            {:reply, {:error, "Sudoku rules not properly loaded"}, %{state | monitoring_state: new_monitoring_state}}
+            # Extract the PrologSolution matrix and substitute variables with actual values
+            prolog_solution = case Map.get(results, "PrologSolution") do
+              matrix when is_list(matrix) ->
+                # Substitute alphabetic variables with their actual numeric values
+                substitute_variables_in_matrix(matrix, results)
+              other ->
+                IO.puts("⚠️ Unexpected PrologSolution format: #{inspect(other)}")
+                other
+            end
+            
+            # Validate Prolog solution using Elixir
+            prolog_validation = PrologDemo.SudokuGenerator.validate_solution(prolog_solution)
+            
+            # Compare Elixir and Prolog solutions
+            solutions_match = elixir_solution == prolog_solution
+            
+            IO.puts("✅ Prolog solved the puzzle! Validation: #{prolog_validation}, Match with Elixir: #{solutions_match}")
+
+            {:reply, {:ok, %{
+              puzzle: elixir_puzzle,
+              solution: prolog_solution,  # Use processed Prolog solution with numeric values
+              elixir_solution: elixir_solution,
+              solutions_match: solutions_match,
+              elixir_validation: prolog_validation,  # Validate the Prolog solution
+              time_ms: end_time - start_time,
+              count: 1,
+              generated_by: "elixir",
+              solved_by: "prolog_clp",
+              integration_demo: true,
+              note: "🚀 Elixir-generated puzzle solved by Prolog CLP(FD)!"
+            }}, %{updated_state | monitoring_state: new_monitoring_state}}
+
+          {:ok, []} ->
+            # Empty result - Prolog didn't find a solution
+            IO.puts("⚠️ Prolog solver returned no solutions - puzzle may be unsolvable or rules incorrect")
+            end_time = System.monotonic_time(:millisecond)
+            new_monitoring_state = %{monitoring_state |
+              query_count: monitoring_state.query_count + 1,
+              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+            }
+
+            # Return the Elixir solution as fallback with explanation
+            {:reply, {:ok, %{
+              puzzle: elixir_puzzle,
+              solution: elixir_solution,  # Use Elixir solution as fallback
+              elixir_solution: elixir_solution,
+              solutions_match: false,
+              elixir_validation: true,
+              time_ms: end_time - start_time,
+              count: 1,
+              generated_by: "elixir",
+              solved_by: "elixir_fallback",
+              integration_demo: false,
+              note: "⚠️ Prolog solver found no solution - using Elixir solution as fallback"
+            }}, %{updated_state | monitoring_state: new_monitoring_state}}
+
+          {:error, reason} ->
+            IO.puts("❌ Prolog CLP(FD) solver failed: #{inspect(reason)}")
+            end_time = System.monotonic_time(:millisecond)
+            new_monitoring_state = %{monitoring_state |
+              query_count: monitoring_state.query_count + 1,
+              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+            }
+
+            {:reply, {:error, "Prolog CLP(FD) solver failed: #{inspect(reason)}"}, %{updated_state | monitoring_state: new_monitoring_state}}
+
+          other ->
+            IO.puts("⚠️ Unexpected Prolog result: #{inspect(other)}")
+            end_time = System.monotonic_time(:millisecond)
+            new_monitoring_state = %{monitoring_state |
+              query_count: monitoring_state.query_count + 1,
+              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+            }
+
+            {:reply, {:error, "Unexpected Prolog result: #{inspect(other)}"}, %{updated_state | monitoring_state: new_monitoring_state}}
         end
 
       _ ->
@@ -230,170 +302,148 @@ defmodule PrologDemo.ConstraintSessionManager do
   end
 
   defp load_constraint_rules(session) do
+    IO.puts("🚀 Starting constraint rules loading...")
     load_n_queens_rules(session)
     load_sudoku_rules(session)
+    IO.puts("🏁 Finished constraint rules loading")
   end
 
   defp load_n_queens_rules(session) do
-    # Simple N-Queens solver without CLP(FD)
-    n_queens_code = """
-    % Generate a permutation of numbers 1 to N
-    permutation([], []).
-    permutation([H|T], L) :-
-        permutation(T, L1),
-        select(H, L, L1).
+    IO.puts("📋 Loading N-Queens CLP solver...")
+    
+    # First, try to load the CLP(FD) module
+    case MQI.query(session, "use_module(library(clpfd))") do
+      {:ok, _} -> 
+        IO.puts("✅ CLP(FD) module loaded successfully")
+      {:error, reason} -> 
+        IO.puts("⚠️ CLP(FD) module load warning: #{reason}")
+    end
+    
+    # Load proper N-Queens CLP(FD) solver
+    n_queens_rules = [
+      "n_queens_solve(NumQueens, Positions) :- length(Positions, NumQueens), Positions ins 1..NumQueens, safe_queens(Positions), label(Positions).",
+      "safe_queens([]).",
+      "safe_queens([Q|Qs]) :- safe_queens(Qs), no_attack(Q, Qs, 1).",
+      "no_attack(_, [], _).",
+      "no_attack(Q, [Q1|Qs], Dist) :- Q #\\= Q1, abs(Q - Q1) #\\= Dist, Dist1 #= Dist + 1, no_attack(Q, Qs, Dist1).",
+      "find_n_queens_solutions(NumQueens, Solutions) :- findall(Positions, n_queens_solve(NumQueens, Positions), AllSolutions), (length(AllSolutions, Len), Len > 10 -> length(Solutions, 10), append(Solutions, _, AllSolutions); Solutions = AllSolutions).",
+      "n_queens(NumQueens, Solution) :- n_queens_solve(NumQueens, Solution).",
+      "n_queens_solution(NumQueens, Solution) :- n_queens_solve(NumQueens, Solution)."
+    ]
 
-    % Generate list from 1 to N
-    range(1, 1, [1]) :- !.
-    range(1, N, [1|Rest]) :-
-        N > 1,
-        N1 is N - 1,
-        range(2, N, Rest).
-    range(M, N, [M|Rest]) :-
-        M < N,
-        M1 is M + 1,
-        range(M1, N, Rest).
-    range(N, N, [N]).
+    success_count = Enum.reduce(n_queens_rules, 0, fn rule, acc ->
+      case MQI.assertz(session, rule) do
+        {:ok, _} -> acc + 1
+        {:error, reason} -> 
+          IO.puts("⚠️ Failed to load rule '#{rule}': #{reason}")
+          acc
+      end
+    end)
 
-    % Check if queens are safe
-    queens_safe([]).
-    queens_safe([_]).
-    queens_safe([Q1|Rest]) :-
-        safe_from_all(Q1, Rest, 1),
-        queens_safe(Rest).
-
-    % Check if Q1 is safe from all queens in the list
-    safe_from_all(_, [], _).
-    safe_from_all(Q1, [Q2|Rest], Dist) :-
-        Q1 - Q2 =\\= Dist,
-        Q2 - Q1 =\\= Dist,
-        Dist1 is Dist + 1,
-        safe_from_all(Q1, Rest, Dist1).
-
-    % Main N-Queens solver
-    n_queens(N, Solution) :-
-        range(1, N, Positions),
-        permutation(Positions, Solution),
-        queens_safe(Solution).
-
-    n_queens_solution(N, Solution) :- n_queens(N, Solution).
-    """
-
-    case MQI.consult_string(session, n_queens_code) do
-      {:ok, _} -> IO.puts("✅ Loaded N-Queens solver")
-      {:error, reason} -> IO.puts("❌ Failed to load N-Queens solver: #{reason}")
+    if success_count == length(n_queens_rules) do
+      IO.puts("✅ Loaded N-Queens solver with #{success_count} rules")
+    else
+      IO.puts("⚠️ Loaded #{success_count}/#{length(n_queens_rules)} N-Queens rules")
     end
   end
 
   defp load_sudoku_rules(session) do
-    # Working Sudoku solver with a sample puzzle
-    sudoku_code = """
-    % Sample Sudoku puzzle (0 represents empty cells)
-    sample_sudoku([
-        [5,3,0,0,7,0,0,0,0],
-        [6,0,0,1,9,5,0,0,0],
-        [0,9,8,0,0,0,0,6,0],
-        [8,0,0,0,6,0,0,0,3],
-        [4,0,0,8,0,3,0,0,1],
-        [7,0,0,0,2,0,0,0,6],
-        [0,6,0,0,0,0,2,8,0],
-        [0,0,0,4,1,9,0,0,5],
-        [0,0,0,0,8,0,0,7,9]
-    ]).
+    IO.puts("🧩 Loading Sudoku CLP solver...")
+    
+    # Load proper CLP(FD) Sudoku solver using SWI-Prolog's built-in predicates
+    sudoku_rules = [
+      # Main solver predicate using CLP(FD) constraints  
+      "solve_sudoku_puzzle(Puzzle, Solution) :- Solution = Puzzle, sudoku(Solution), ground(Solution).",
+      
+      # SWI-Prolog CLP(FD) Sudoku solver using built-in transpose
+      "sudoku(Rows) :- length(Rows, 9), maplist(same_length(Rows), Rows), append(Rows, Vars), Vars ins 1..9, maplist(all_distinct, Rows), transpose(Rows, Cols), maplist(all_distinct, Cols), distinct_squares(Rows), labeling([], Vars).",
+      
+      # Validate 3x3 squares
+      "distinct_squares([]).",
+      "distinct_squares([R1, R2, R3 | Rows]) :- distinct_square(R1, R2, R3), distinct_squares(Rows).",
+      
+      # Check one 3x3 square for distinctness
+      "distinct_square([], [], []).",
+      "distinct_square([N11, N12, N13 | Tail1], [N21, N22, N23 | Tail2], [N31, N32, N33 | Tail3]) :- all_distinct([N11, N12, N13, N21, N22, N23, N31, N32, N33]), distinct_square(Tail1, Tail2, Tail3)."
+    ]
 
-    % Simple Sudoku solver using backtracking
-    sudoku_solve(Grid) :-
-        sudoku_solve_cell(Grid, 0, 0).
+    success_count = Enum.reduce(sudoku_rules, 0, fn rule, acc ->
+      case MQI.assertz(session, rule) do
+        {:ok, _} -> acc + 1
+        {:error, reason} -> 
+          IO.puts("⚠️ Failed to load Sudoku rule: #{reason}")
+          acc
+      end
+    end)
 
-    sudoku_solve_cell(_, 9, _) :- !.
-    sudoku_solve_cell(Grid, Row, 9) :-
-        NextRow is Row + 1,
-        sudoku_solve_cell(Grid, NextRow, 0).
-
-    % Case 1: Cell already has a value
-    sudoku_solve_cell(Grid, Row, Col) :-
-        get_cell(Grid, Row, Col, Value),
-        Value > 0,
-        !,
-        NextCol is Col + 1,
-        sudoku_solve_cell(Grid, Row, NextCol).
-
-    % Case 2: Cell is empty, try values 1-9
-    sudoku_solve_cell(Grid, Row, Col) :-
-        get_cell(Grid, Row, Col, 0),
-        between(1, 9, N),
-        valid_move(Grid, Row, Col, N),
-        set_cell(Grid, Row, Col, N, NewGrid),
-        NextCol is Col + 1,
-        sudoku_solve_cell(NewGrid, Row, NextCol).
-
-    get_cell(Grid, Row, Col, Value) :-
-        nth0(Row, Grid, RowList),
-        nth0(Col, RowList, Value).
-
-    set_cell(Grid, Row, Col, Value, NewGrid) :-
-        nth0(Row, Grid, RowList),
-        replace_nth(Col, RowList, Value, NewRowList),
-        replace_nth(Row, Grid, NewRowList, NewGrid).
-
-    replace_nth(0, [_|T], X, [X|T]).
-    replace_nth(N, [H|T], X, [H|NewT]) :-
-        N > 0,
-        N1 is N - 1,
-        replace_nth(N1, T, X, NewT).
-
-    valid_move(Grid, Row, Col, N) :-
-        valid_row(Grid, Row, N),
-        valid_col(Grid, Col, N),
-        valid_box(Grid, Row, Col, N).
-
-    valid_row(Grid, Row, N) :-
-        nth0(Row, Grid, RowList),
-        \\+ member(N, RowList).
-
-    valid_col(Grid, Col, N) :-
-        maplist(nth0(Col), Grid, ColList),
-        \\+ member(N, ColList).
-
-    valid_box(Grid, Row, Col, N) :-
-        BoxRow is (Row // 3) * 3,
-        BoxCol is (Col // 3) * 3,
-        get_box(Grid, BoxRow, BoxCol, Box),
-        \\+ member(N, Box).
-
-    get_box(Grid, StartRow, StartCol, Box) :-
-        findall(Value,
-            (between(0, 2, R),
-             between(0, 2, C),
-             Row is StartRow + R,
-             Col is StartCol + C,
-             get_cell(Grid, Row, Col, Value)),
-            Box).
-
-    % Main interface - create a copy and solve it
-    sudoku_solution(Puzzle, Solution) :-
-        copy_term(Puzzle, Solution),
-        sudoku_solve(Solution).
-
-    % Get sample puzzle
-    get_sample_sudoku(Puzzle) :-
-        sample_sudoku(Puzzle).
-    """
-
-    case MQI.consult_string(session, sudoku_code) do
-      {:ok, _} ->
-        IO.puts("✅ Loaded Sudoku solver")
-        # Test that the sample puzzle is loaded correctly
-        case MQI.query(session, "sample_sudoku(P)") do
-          {:ok, [%{"P" => puzzle}]} ->
-            IO.puts("✅ Sample puzzle loaded successfully")
-          {:error, reason} ->
-            IO.puts("⚠️  Failed to verify sample puzzle: #{inspect(reason)}")
-          other ->
-            IO.puts("⚠️  Unexpected result from sample puzzle: #{inspect(other)}")
-        end
-      {:error, reason} ->
-        IO.puts("❌ Failed to load Sudoku solver: #{reason}")
+    if success_count == length(sudoku_rules) do
+      IO.puts("✅ Loaded working Sudoku CLP solver with #{success_count} rules")
+    else
+      IO.puts("⚠️ Loaded #{success_count}/#{length(sudoku_rules)} Sudoku rules")
     end
   end
+
+  # Helper function to format Elixir puzzle for Prolog
+  # Empty squares (0) are represented as unbound variables for CLP(FD)
+  defp format_puzzle_for_prolog(puzzle) do
+    # Create a unique variable for each empty cell
+    {rows_str, _counter} = puzzle
+    |> Enum.reduce({"", 1}, fn row, {acc_rows, var_counter} ->
+      {row_str, new_counter} = row
+      |> Enum.reduce({"", var_counter}, fn cell, {acc_cells, counter} ->
+        cell_str = if cell == 0 do
+          # Use a unique variable name for each empty cell
+          {"V#{counter}", counter + 1}
+        else
+          {to_string(cell), counter}
+        end
+        
+        case cell_str do
+          {str, new_cnt} ->
+            separator = if acc_cells == "", do: "", else: ", "
+            {acc_cells <> separator <> str, new_cnt}
+        end
+      end)
+      
+      row_formatted = "[#{row_str}]"
+      separator = if acc_rows == "", do: "", else: ", "
+      {acc_rows <> separator <> row_formatted, new_counter}
+    end)
+    
+    "[#{rows_str}]"
+  end
+
+  # Helper function to substitute alphabetic variables with their numeric values in the solution matrix
+  defp substitute_variables_in_matrix(matrix, results) when is_list(matrix) and is_map(results) do
+    # Build a map of variable bindings from the MQI results
+    variable_map = results
+    |> Enum.filter(fn {key, _value} -> key not in ["PrologSolution"] end)
+    |> Enum.into(%{})
+    
+    IO.puts("🔧 Variable bindings found: #{inspect(variable_map)}")
+    
+    # Recursively substitute variables in the matrix
+    substitute_in_data(matrix, variable_map)
+  end
+  
+  # Recursively substitute variables in nested data structures
+  defp substitute_in_data(data, variable_map) when is_list(data) do
+    Enum.map(data, fn element ->
+      substitute_in_data(element, variable_map)
+    end)
+  end
+  
+  defp substitute_in_data(data, variable_map) when is_binary(data) do
+    # If this is a variable name, substitute it with the actual value
+    case Map.get(variable_map, data) do
+      nil -> data  # Not a variable, return as-is
+      value -> substitute_in_data(value, variable_map)  # Recursively substitute
+    end
+  end
+  
+  defp substitute_in_data(data, _variable_map) do
+    # Numbers and other data types return as-is
+    data
+  end
+
 end

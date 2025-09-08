@@ -49,7 +49,9 @@ defmodule Swiex do
   """
   @spec query_async(String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def query_async(prolog_query) do
-    Swiex.MQI.query_async(prolog_query)
+    with {:ok, session} <- Swiex.MQI.start_session() do
+      Swiex.MQI.query_async(session, prolog_query)
+    end
   end
 
   @doc """
@@ -65,7 +67,9 @@ defmodule Swiex do
   """
   @spec cancel_async(non_neg_integer()) :: :ok | {:error, term()}
   def cancel_async(query_id) do
-    Swiex.MQI.cancel_async(query_id)
+    with {:ok, session} <- Swiex.MQI.start_session() do
+      Swiex.MQI.cancel_async(session, query_id)
+    end
   end
 
   @doc """

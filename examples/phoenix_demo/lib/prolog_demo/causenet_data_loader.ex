@@ -8,6 +8,7 @@ defmodule PrologDemo.CauseNetDataLoader do
   def load_causenet_data do
     case File.read(@data_file) do
       {:ok, content} ->
+        IO.puts("📊 Loading full CauseNet dataset for real Prolog demo...")
         content
         |> String.split("\n")
         |> Enum.reject(&(&1 == ""))
@@ -17,8 +18,7 @@ defmodule PrologDemo.CauseNetDataLoader do
         |> Enum.uniq_by(fn {cause, effect} -> {cause, effect} end)
 
       {:error, reason} ->
-        IO.warn("Could not load CauseNet data: #{reason}")
-        get_fallback_data()
+        raise "CauseNet data file not found: #{reason}. Real Prolog demo requires actual data file at #{@data_file}"
     end
   end
 
@@ -36,8 +36,7 @@ defmodule PrologDemo.CauseNetDataLoader do
         |> Enum.take(500)  # Limit to 500 relationships for performance
 
       {:error, reason} ->
-        IO.warn("Could not load CauseNet data: #{reason}")
-        get_death_related_fallback_data()
+        raise "CauseNet data file not found: #{reason}. Real Prolog demo requires actual data file at #{@data_file}"
     end
   end
 
@@ -79,9 +78,7 @@ defmodule PrologDemo.CauseNetDataLoader do
         |> Enum.take(limit)
 
       {:error, reason} ->
-        IO.warn("Could not load CauseNet data: #{reason}")
-        get_fallback_data()
-        |> Enum.take(limit)
+        raise "CauseNet data file not found: #{reason}. Real Prolog demo requires actual data file at #{@data_file}"
     end
   end
 

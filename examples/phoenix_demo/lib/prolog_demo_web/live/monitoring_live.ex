@@ -117,8 +117,8 @@ defmodule PrologDemoWeb.MonitoringLive do
       facts_loaded = session_manager.facts_loaded?()
 
       if facts_loaded do
-        # Get basic statistics
-        case session_manager.get_statistics() do
+        # Get monitoring summary from the session manager
+        case session_manager.get_monitoring_summary() do
           {:ok, stats} ->
             Map.merge(stats, %{
               "session_name" => name,
@@ -164,7 +164,7 @@ defmodule PrologDemoWeb.MonitoringLive do
   end
 
   defp format_number(nil), do: "N/A"
-  defp format_number(num) when is_number(num), do: Number.Delimit.number_to_delimited(num)
+  defp format_number(num) when is_number(num), do: :erlang.float_to_binary(num * 1.0, [:compact, decimals: 0])
   defp format_number(str), do: to_string(str)
 
   defp format_time(nil), do: "N/A"

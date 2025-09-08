@@ -55,6 +55,10 @@ defmodule PrologDemo.CausalSessionManager do
     GenServer.call(__MODULE__, :get_statistics)
   end
 
+  def get_monitoring_summary do
+    GenServer.call(__MODULE__, :get_monitoring_summary)
+  end
+
   def handle_call({:query_causal_paths, start_concept, end_concept}, _from, %{session: session, monitoring_state: monitoring_state} = state) do
     # Try a simpler query first - just direct causes
     query = "causes('#{start_concept}', '#{end_concept}')"
@@ -77,10 +81,12 @@ defmodule PrologDemo.CausalSessionManager do
           end)
 
           case result2 do
-            {:ok, results2} ->
-              paths = Enum.map(results2, fn result -> [start_concept, result["X"], end_concept] end)
+            {:ok, results2} when is_list(results2) and length(results2) > 0 ->
+              # Take only first 10 results to avoid MQI parsing issues
+              limited_results = Enum.take(results2, 10)
+              paths = Enum.map(limited_results, fn result -> [start_concept, result["X"], end_concept] end)
               {:reply, {:ok, paths}, %{state | monitoring_state: final_monitoring_state}}
-            {:error, _} ->
+            _ ->
               {:reply, {:ok, []}, %{state | monitoring_state: final_monitoring_state}}
           end
         end
@@ -107,7 +113,7 @@ defmodule PrologDemo.CausalSessionManager do
         # Direct relationship only
         query = "causes('#{start_concept}', '#{end_concept}')"
         case MQI.query(session, query) do
-          {:ok, results} when length(results) > 0 ->
+          {:ok, [_|_] = _results} ->
             {:ok, [[start_concept, end_concept]]}
           _ ->
             {:ok, []}
@@ -130,23 +136,23 @@ defmodule PrologDemo.CausalSessionManager do
         end
 
       _ ->
-        # Multi-step paths with depth limiting and cycle detection
-        # Use a more conservative approach to avoid large result sets
-        query = """
-        find_paths('#{start_concept}', '#{end_concept}', #{max_depth}, Path)
-        """
-        case MQI.query(session, query) do
-          {:ok, results} ->
-            # Limit results to prevent overwhelming the parser
-            limited_results = Enum.take(results, 50)
-            paths = Enum.map(limited_results, &(&1["Path"]))
+        # Multi-step paths with depth limiting - use simpler approach to avoid MQI parsing issues
+        # Try 2-step paths first, then 3-step if needed
+        query2 = "causes('#{start_concept}', X), causes(X, '#{end_concept}')"
+        
+        case MQI.query(session, query2) do
+          {:ok, results2} when length(results2) > 0 ->
+            # Found 2-step paths
+            paths = Enum.take(results2, 10) # Limit to prevent MQI issues
+            |> Enum.map(fn result -> [start_concept, result["X"], end_concept] end)
             {:ok, paths}
-          {:error, reason} ->
-            IO.puts("Advanced path query failed: #{reason}")
-            # Fallback to simpler approach
-            case MQI.query(session, "causes('#{start_concept}', X), causes(X, '#{end_concept}')") do
-              {:ok, results} ->
-                paths = Enum.map(results, fn result -> [start_concept, result["X"], end_concept] end)
+          _ ->
+            # Try 3-step paths if no 2-step found
+            query3 = "causes('#{start_concept}', X), causes(X, Y), causes(Y, '#{end_concept}')"
+            case MQI.query(session, query3) do
+              {:ok, results3} ->
+                paths = Enum.take(results3, 5) # Even smaller limit for 3-step
+                |> Enum.map(fn result -> [start_concept, result["X"], result["Y"], end_concept] end)
                 {:ok, paths}
               {:error, _} ->
                 {:ok, []}
@@ -227,6 +233,11 @@ defmodule PrologDemo.CausalSessionManager do
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end
+  end
+
+  def handle_call(:get_monitoring_summary, _from, %{monitoring_state: monitoring_state} = state) do
+    summary = Monitoring.get_summary(monitoring_state)
+    {:reply, {:ok, summary}, state}
   end
 
   def handle_call(request, _from, state) do

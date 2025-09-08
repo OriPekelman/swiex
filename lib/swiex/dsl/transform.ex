@@ -79,7 +79,7 @@ defmodule Swiex.DSL.Transform do
 
   # Private functions
 
-  defp format_arg({:^, _meta, [{var, _meta, nil}]}) when is_atom(var) do
+  defp format_arg({:^, _meta1, [{var, _meta2, nil}]}) when is_atom(var) do
     to_string(var)
   end
 
@@ -107,7 +107,7 @@ defmodule Swiex.DSL.Transform do
     inspect(other)
   end
 
-  defp format_arg_with_bindings({:^, _meta, [{var, _meta, nil}]}, bindings) when is_atom(var) do
+  defp format_arg_with_bindings({:^, _meta1, [{var, _meta2, nil}]}, bindings) when is_atom(var) do
     case Keyword.fetch(bindings, var) do
       {:ok, value} -> to_string(value)
       :error -> to_string(var) # Fallback to variable name if not found
@@ -129,8 +129,8 @@ defmodule Swiex.DSL.Transform do
     "'#{escape_string(literal)}'"
   end
 
-  defp format_arg_with_bindings(literal, _bindings) when is_list(literal) do
-    "[" <> Enum.map_join(literal, ",", &format_arg_with_bindings(&1, _bindings)) <> "]"
+  defp format_arg_with_bindings(literal, bindings) when is_list(literal) do
+    "[" <> Enum.map_join(literal, ",", &format_arg_with_bindings(&1, bindings)) <> "]"
   end
 
   defp format_arg_with_bindings({:__aliases__, _meta, [var]}, _bindings) when is_atom(var) do

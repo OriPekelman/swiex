@@ -10,23 +10,23 @@ defmodule PrologDemo.CauseNetService do
   Fetch causal relationships from CauseNet API for a given concept.
   """
   def fetch_causal_relationships(concept, limit \\ 100) do
-    # Try to fetch from CauseNet API
-    case fetch_from_api(concept, limit) do
-      {:ok, relationships} ->
-        {:ok, relationships}
-      {:error, _} ->
-        # Fallback to sample data if API fails
-        {:ok, get_sample_causenet_data()}
-    end
+    # For real Prolog demo, use actual CauseNet data only
+    # No fallbacks - demonstrate true Prolog capabilities
+    {:ok, CauseNetDataLoader.load_causenet_data() |> Enum.take(limit)}
   end
 
   @doc """
   Fetch all available concepts from CauseNet.
   """
-  def fetch_available_concepts(_limit \\ 1000) do
-    # This would normally fetch from CauseNet's concept list
-    # For now, return a curated list of common concepts
-    {:ok, get_common_concepts()}
+  def fetch_available_concepts(limit \\ 1000) do
+    # Extract unique concepts from real CauseNet data
+    relationships = CauseNetDataLoader.load_causenet_data()
+    
+    causes = relationships |> Enum.map(fn {cause, _} -> cause end)
+    effects = relationships |> Enum.map(fn {_, effect} -> effect end)
+    
+    unique_concepts = (causes ++ effects) |> Enum.uniq() |> Enum.take(limit)
+    {:ok, unique_concepts}
   end
 
   @doc """
@@ -45,7 +45,8 @@ defmodule PrologDemo.CauseNetService do
   This includes real-world causal relationships from various domains.
   """
   def get_real_causenet_data do
-    CauseNetDataLoader.load_manageable_subset(2000)
+    # Load full CauseNet dataset for real Prolog demo
+    CauseNetDataLoader.load_causenet_data()
   end
 
   def get_death_related_data do
@@ -53,8 +54,8 @@ defmodule PrologDemo.CauseNetService do
   end
 
   def get_causenet_prolog_facts do
-    # Load a smaller subset for better performance - using 1K relationships from the 200K dataset
-    CauseNetDataLoader.load_manageable_subset(1000)
+    # Load full CauseNet dataset - no limits for real Prolog capabilities demo
+    CauseNetDataLoader.load_causenet_data()
     |> CauseNetDataLoader.to_prolog_facts()
   end
 

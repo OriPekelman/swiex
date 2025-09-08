@@ -336,7 +336,13 @@ defmodule Swiex.MQI do
   """
   def stop_session(%Session{socket: socket, port_ref: port_ref}) do
     :gen_tcp.close(socket)
-    if port_ref, do: Port.close(port_ref)
+    if port_ref do
+      try do
+        Port.close(port_ref)
+      catch
+        :error, :badarg -> :ok  # Port already closed
+      end
+    end
     :ok
   end
 
@@ -386,20 +392,6 @@ defmodule Swiex.MQI do
     end
   end
 
-  defp start_mqi_server do
-    case Port.open({:spawn, "swipl mqi --write_connection_values=true"},
-         [:binary, :exit_status, {:line, 1024}]) do
-      port when is_port(port) ->
-        case read_connection_values(port) do
-          {:ok, port_num, password} ->
-            {:ok, port_num, password}
-          {:error, reason} ->
-            {:error, reason}
-        end
-      _ ->
-        {:error, "Failed to start MQI server"}
-    end
-  end
 
   defp read_connection_values(port) do
     IO.puts("[MQI] Reading connection values from Prolog...")
@@ -507,15 +499,78 @@ defmodule Swiex.MQI do
   end
 
   defp recv_response(socket, timeout \\ @default_timeout) do
-    case :gen_tcp.recv(socket, 0, timeout) do
-      {:ok, response} ->
-        IO.puts("[MQI] Raw response: #{inspect(response)}")
-        {:ok, response}
-      {:error, :timeout} ->
-        IO.puts("[MQI] Recv timeout after #{timeout}ms")
-        {:error, :query_timeout}
+    # First, read the length header
+    case read_message_length(socket, timeout) do
+      {:ok, expected_length} ->
+        # Now read exactly expected_length bytes
+        case read_exact_bytes(socket, expected_length, timeout) do
+          {:ok, message_data} ->
+            # Keep original message data but reconstruct properly for parse_mqi_message
+            # parse_mqi_message expects format: "length.\njson_data"
+            full_response = "#{expected_length}.\n#{message_data}"
+            IO.puts("[MQI] Raw response: #{inspect(full_response)}")
+            {:ok, full_response}
+          {:error, reason} ->
+            IO.puts("[MQI] Failed to read message body: #{inspect(reason)}")
+            {:error, reason}
+        end
       {:error, reason} ->
-        IO.puts("[MQI] Recv error: #{inspect(reason)}")
+        IO.puts("[MQI] Failed to read message length: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  # Read the message length header (number followed by ".\n")
+  defp read_message_length(socket, timeout) do
+    read_message_length_acc(socket, <<>>, timeout)
+  end
+
+  defp read_message_length_acc(socket, acc, timeout) do
+    case :gen_tcp.recv(socket, 1, timeout) do
+      {:ok, <<byte>>} ->
+        case byte do
+          ?. ->
+            # Found the dot, now read the newline
+            case :gen_tcp.recv(socket, 1, timeout) do
+              {:ok, <<?\n>>} ->
+                # Parse the accumulated length string
+                case Integer.parse(acc) do
+                  {length, ""} -> {:ok, length}
+                  _ -> {:error, "Invalid message length: #{acc}"}
+                end
+              {:error, reason} ->
+                {:error, reason}
+            end
+          ?\n ->
+            # Unexpected newline without dot
+            {:error, "Invalid message format: newline without dot"}
+          _ ->
+            # Continue accumulating length digits  
+            read_message_length_acc(socket, <<acc::binary, byte>>, timeout)
+        end
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Read exactly n bytes from the socket
+  defp read_exact_bytes(socket, n, timeout) do
+    read_exact_bytes_acc(socket, n, <<>>, timeout)
+  end
+
+  defp read_exact_bytes_acc(_socket, 0, acc, _timeout) do
+    {:ok, acc}
+  end
+
+  defp read_exact_bytes_acc(socket, remaining, acc, timeout) do
+    # Read in chunks, but don't read more than we need
+    chunk_size = min(remaining, 4096)
+    case :gen_tcp.recv(socket, chunk_size, timeout) do
+      {:ok, data} ->
+        bytes_read = byte_size(data)
+        new_acc = <<acc::binary, data::binary>>
+        read_exact_bytes_acc(socket, remaining - bytes_read, new_acc, timeout)
+      {:error, reason} ->
         {:error, reason}
     end
   end

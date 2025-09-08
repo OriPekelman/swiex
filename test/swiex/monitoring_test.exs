@@ -59,7 +59,7 @@ defmodule Swiex.MonitoringTest do
         fn -> MQI.query(session, query) end
       )
 
-      assert {:ok, []} = result  # Empty result for undefined predicate
+      assert {:error, _} = result  # Error for undefined predicate
       assert new_state.query_count == 1
     end
 

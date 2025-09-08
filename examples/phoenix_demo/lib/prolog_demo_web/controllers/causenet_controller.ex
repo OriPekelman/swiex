@@ -158,6 +158,28 @@ defmodule PrologDemoWeb.CauseNetController do
   end
 
   # Handle constraint solving through the session manager
+  def constraint_solver(conn, %{"solver" => solver, "puzzle" => puzzle}) do
+    case solver do
+      "sudoku" ->
+        case ConstraintSessionManager.query_constraint_solver("sudoku", %{"puzzle" => puzzle}) do
+          {:ok, solution} ->
+            json(conn, %{success: true, data: solution})
+          {:error, reason} ->
+            json(conn, %{success: false, error: reason})
+        end
+      "n_queens" ->
+        n = length(puzzle)
+        case ConstraintSessionManager.query_constraint_solver("n_queens", %{"n" => n}) do
+          {:ok, solution} ->
+            json(conn, %{success: true, data: solution})
+          {:error, reason} ->
+            json(conn, %{success: false, error: reason})
+        end
+      _ ->
+        json(conn, %{success: false, error: "Unknown solver type: #{solver}"})
+    end
+  end
+
   def solve_constraint(conn, params) do
     case solve_constraint_puzzle(conn, params) do
       {:ok, result} ->
