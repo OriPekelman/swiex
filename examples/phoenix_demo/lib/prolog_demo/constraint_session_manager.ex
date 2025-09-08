@@ -56,39 +56,65 @@ defmodule PrologDemo.ConstraintSessionManager do
         
         start_time = System.monotonic_time(:millisecond)
         
-        # Use setof to get all unique solutions
+        # Try async query with corrected command names
         query = "setof(Solution, n_queens(#{n}, Solution), Solutions)"
         
-        result = MQI.query(session, query)
-        end_time = System.monotonic_time(:millisecond)
-        
-        new_monitoring_state = %{monitoring_state | 
-          query_count: monitoring_state.query_count + 1,
-          total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
-        }
-        
-        case result do
-          {:ok, [%{"Solutions" => solutions}]} when is_list(solutions) ->
-            {:reply, {:ok, %{
-              n: n,
-              solutions: Enum.take(solutions, 10),  # Limit display to 10
-              count: length(solutions),
-              display_limit: 10
-            }}, %{state | monitoring_state: new_monitoring_state}}
+        case MQI.query_async(session, query, timeout: 10000) do
+          {:ok, query_id} ->
+            # Poll for result
+            result = wait_for_async_result(session, query_id, 10000)
+            end_time = System.monotonic_time(:millisecond)
             
-          _ ->
-            # Fallback: get individual solutions
-            case MQI.query(session, "n_queens(#{n}, Solution)") do
-              {:ok, results} ->
-                solutions = Enum.map(results, fn %{"Solution" => s} -> s end) |> Enum.take(10)
+            new_monitoring_state = %{monitoring_state | 
+              query_count: monitoring_state.query_count + 1,
+              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+            }
+            
+            case result do
+              {:ok, [%{"Solutions" => solutions}]} when is_list(solutions) ->
                 {:reply, {:ok, %{
                   n: n,
-                  solutions: solutions,
+                  solutions: Enum.take(solutions, 10),  # Limit display to 10
                   count: length(solutions),
                   display_limit: 10
                 }}, %{state | monitoring_state: new_monitoring_state}}
-              {:error, reason} ->
-                {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
+                
+              _ ->
+                # Fallback to synchronous
+                case MQI.query(session, "n_queens(#{n}, Solution)") do
+                  {:ok, results} ->
+                    solutions = Enum.map(results, fn %{"Solution" => s} -> s end) |> Enum.take(10)
+                    {:reply, {:ok, %{
+                      n: n,
+                      solutions: solutions,
+                      count: length(solutions),
+                      display_limit: 10
+                    }}, %{state | monitoring_state: new_monitoring_state}}
+                  {:error, reason} ->
+                    {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
+                end
+            end
+            
+          {:error, _} ->
+            # Fallback to synchronous if async not available
+            end_time = System.monotonic_time(:millisecond)
+            result = MQI.query(session, query)
+            
+            new_monitoring_state = %{monitoring_state | 
+              query_count: monitoring_state.query_count + 1,
+              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+            }
+            
+            case result do
+              {:ok, [%{"Solutions" => solutions}]} when is_list(solutions) ->
+                {:reply, {:ok, %{
+                  n: n,
+                  solutions: Enum.take(solutions, 10),
+                  count: length(solutions),
+                  display_limit: 10
+                }}, %{state | monitoring_state: new_monitoring_state}}
+              _ ->
+                {:reply, {:error, "Could not solve N-Queens"}, %{state | monitoring_state: new_monitoring_state}}
             end
         end
 

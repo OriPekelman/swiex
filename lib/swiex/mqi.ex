@@ -467,7 +467,7 @@ defmodule Swiex.MQI do
   end
 
   defp send_async_query(socket, query_id, query, timeout) do
-    # Format: run_async(Goal, Timeout, QueryID)
+    # The MQI uses query_async command
     clean_query = String.trim_trailing(String.trim(query), ".")
 
     formatted_query = if String.contains?(clean_query, ",") do
@@ -476,7 +476,8 @@ defmodule Swiex.MQI do
       clean_query
     end
 
-    message = "run_async(#{formatted_query}, #{timeout}, '#{query_id}').\n"
+    # Note: query_async in MQI takes (query, find_all, timeout, query_id)
+    message = "query_async(#{formatted_query}, true, #{timeout}, '#{query_id}').\n"
     length_str = "#{byte_size(message)}.\n"
     packet = length_str <> message
     IO.puts("[MQI] Sending async query: #{inspect(packet)}")
@@ -484,7 +485,8 @@ defmodule Swiex.MQI do
   end
 
   defp send_async_result_request(socket, query_id, timeout) do
-    message = "async_result('#{query_id}', #{timeout}).\n"
+    # The MQI protocol uses query_async_result, not async_result
+    message = "query_async_result('#{query_id}', #{timeout}).\n"
     length_str = "#{byte_size(message)}.\n"
     packet = length_str <> message
     IO.puts("[MQI] Requesting async result: #{inspect(packet)}")
@@ -492,7 +494,8 @@ defmodule Swiex.MQI do
   end
 
   defp send_cancel_async_request(socket, query_id) do
-    message = "cancel_async('#{query_id}').\n"
+    # The MQI protocol uses cancel_query_async, not cancel_async
+    message = "cancel_query_async('#{query_id}').\n"
     length_str = "#{byte_size(message)}.\n"
     packet = length_str <> message
     IO.puts("[MQI] Cancelling async query: #{inspect(packet)}")
