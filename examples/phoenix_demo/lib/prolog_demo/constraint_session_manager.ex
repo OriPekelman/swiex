@@ -79,9 +79,9 @@ defmodule PrologDemo.ConstraintSessionManager do
             IO.puts("✅ CLP(FD) found #{length(solutions)} solutions for #{n}-Queens")
             {:reply, {:ok, %{
               n: n,
-              solutions: Enum.take(solutions, 10),  # Display first 10
+              solutions: Enum.take(solutions, 100),  # Display first 10
               count: length(solutions),
-              display_limit: 10,
+              display_limit: 100,
               solver_type: "clp_fd",
               note: "🚀 Solved using Constraint Logic Programming!"
             }}, %{state | monitoring_state: new_monitoring_state}}

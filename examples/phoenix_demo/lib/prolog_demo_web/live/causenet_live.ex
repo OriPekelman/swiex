@@ -29,6 +29,12 @@ defmodule PrologDemoWeb.CauseNetLive do
                 🔗 Causal Reasoning
               </.link>
               <.link
+                navigate={~p"/causenet/bidirectional"}
+                class={tab_class(@active_tab, "bidirectional-demo")}
+              >
+                🔄 Bi-directional Demo
+              </.link>
+              <.link
                 navigate={~p"/causenet/constraints"}
                 class={tab_class(@active_tab, "constraint-solving")}
               >
@@ -500,6 +506,234 @@ defmodule PrologDemoWeb.CauseNetLive do
               </div>
             </div>
           </div>
+
+          <!-- Bi-directional Demo Tab -->
+          <div class={tab_content_class(@active_tab, "bidirectional-demo")}>
+            <div class="space-y-8">
+              <!-- Header -->
+              <div class="bg-white rounded-xl shadow-lg p-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">🔄 Bi-directional Programming with Prolog</h2>
+                <p class="text-lg text-gray-700 mb-4">
+                  <strong>The Magic of Prolog:</strong> One rule definition works in ALL directions!
+                </p>
+                <p class="text-gray-600">
+                  Unlike functions in traditional programming languages that only work in one direction (input → output), 
+                  Prolog relations work bidirectionally. The same rule can answer completely different types of questions.
+                </p>
+              </div>
+
+              <!-- Interactive Demo -->
+              <div class="bg-white rounded-xl shadow-lg p-8">
+                <h3 class="text-xl font-bold text-gray-900 mb-6">🧪 Interactive Demo: CauseNet Causal Relations</h3>
+                
+                <!-- Rule Definition -->
+                <div class="mb-8">
+                  <h4 class="font-semibold text-gray-900 mb-3">📝 Live Knowledge Base Rules:</h4>
+                  <div class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
+                    <div class="mb-2 text-gray-400">% <%= @fact_count %> real causal relationships from scientific literature</div>
+                    <div>causes(smoking, lung_cancer).</div>
+                    <div>causes(obesity, diabetes).</div>
+                    <div>causes(stress, heart_disease).</div>
+                    <div class="mb-2 text-gray-400">% ... and <%= @fact_count - 3 %> more facts</div>
+                    <div class="mt-3 text-yellow-400">% ONE rule for causal chains - works in ALL directions</div>
+                    <div class="text-white font-bold">causal_chain(X, Y) :- causes(X, Y).</div>
+                    <div class="text-white font-bold">causal_chain(X, Z) :- causes(X, Y), causal_chain(Y, Z).</div>
+                  </div>
+                </div>
+
+                <!-- Different Query Directions -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <!-- Forward Direction -->
+                  <div class="border-2 border-blue-200 rounded-lg p-6 bg-blue-50">
+                    <h4 class="font-bold text-blue-800 mb-4">➡️ Forward: What does X cause?</h4>
+                    <div class="mb-4">
+                      <input
+                        type="text"
+                        value={@bidirectional_input1 || "smoking"}
+                        phx-blur="update_bidirectional_input1"
+                        phx-value-value={@bidirectional_input1}
+                        class="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter cause (e.g., smoking, obesity)"
+                      />
+                    </div>
+                    <button
+                      phx-click="query_causes_what"
+                      class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Find Effects
+                    </button>
+                    <div class="mt-4 p-3 bg-white rounded border">
+                      <div class="font-mono text-sm text-gray-700">?- causes(<%= @bidirectional_input1 || "smoking" %>, What).</div>
+                      <%= if @bidirectional_results1 do %>
+                        <div class="mt-2 text-green-700 font-medium max-h-32 overflow-y-auto">
+                          <%= if length(@bidirectional_results1) > 0 do %>
+                            <div class="text-xs mb-1"><%= length(@bidirectional_results1) %> effects found:</div>
+                            <%= for effect <- Enum.take(@bidirectional_results1, 10) do %>
+                              <div class="text-xs">• <%= effect %></div>
+                            <% end %>
+                            <%= if length(@bidirectional_results1) > 10 do %>
+                              <div class="text-xs text-gray-500">... and <%= length(@bidirectional_results1) - 10 %> more</div>
+                            <% end %>
+                          <% else %>
+                            No effects found
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+
+                  <!-- Backward Direction -->
+                  <div class="border-2 border-purple-200 rounded-lg p-6 bg-purple-50">
+                    <h4 class="font-bold text-purple-800 mb-4">⬅️ Backward: What causes X?</h4>
+                    <div class="mb-4">
+                      <input
+                        type="text"
+                        value={@bidirectional_input2 || "heart disease"}
+                        phx-blur="update_bidirectional_input2"
+                        phx-value-value={@bidirectional_input2}
+                        class="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        placeholder="Enter effect (e.g., heart disease, cancer)"
+                      />
+                    </div>
+                    <button
+                      phx-click="query_what_causes"
+                      class="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      Find Causes
+                    </button>
+                    <div class="mt-4 p-3 bg-white rounded border">
+                      <div class="font-mono text-sm text-gray-700">?- causes(What, '<%= @bidirectional_input2 || "heart disease" %>').</div>
+                      <%= if @bidirectional_results2 do %>
+                        <div class="mt-2 text-green-700 font-medium max-h-32 overflow-y-auto">
+                          <%= if length(@bidirectional_results2) > 0 do %>
+                            <div class="text-xs mb-1"><%= length(@bidirectional_results2) %> causes found:</div>
+                            <%= for cause <- Enum.take(@bidirectional_results2, 10) do %>
+                              <div class="text-xs">• <%= cause %></div>
+                            <% end %>
+                            <%= if length(@bidirectional_results2) > 10 do %>
+                              <div class="text-xs text-gray-500">... and <%= length(@bidirectional_results2) - 10 %> more</div>
+                            <% end %>
+                          <% else %>
+                            No causes found
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+
+                  <!-- Causal Chain Direction -->
+                  <div class="border-2 border-green-200 rounded-lg p-6 bg-green-50">
+                    <h4 class="font-bold text-green-800 mb-4">🔗 Chain: X → ? → Y</h4>
+                    <div class="mb-2">
+                      <input
+                        type="text"
+                        value={@bidirectional_input3a || "smoking"}
+                        phx-blur="update_bidirectional_input3a"
+                        phx-value-value={@bidirectional_input3a}
+                        class="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 mb-2"
+                        placeholder="Starting cause"
+                      />
+                      <input
+                        type="text"
+                        value={@bidirectional_input3b || "death"}
+                        phx-blur="update_bidirectional_input3b"
+                        phx-value-value={@bidirectional_input3b}
+                        class="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        placeholder="Final effect"
+                      />
+                    </div>
+                    <button
+                      phx-click="query_causal_chain"
+                      class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      Find Causal Chain
+                    </button>
+                    <div class="mt-4 p-3 bg-white rounded border">
+                      <div class="font-mono text-sm text-gray-700">?- causal_chain(<%= @bidirectional_input3a || "smoking" %>, '<%= @bidirectional_input3b || "death" %>').</div>
+                      <%= if @bidirectional_results3 != nil do %>
+                        <div class={"mt-2 font-medium #{if @bidirectional_results3, do: "text-green-700", else: "text-red-700"}"}>
+                          <%= if @bidirectional_results3 do %>
+                            ✅ Causal chain EXISTS!
+                            <div class="text-xs mt-1">Try the Causal Reasoning tab for detailed pathways</div>
+                          <% else %>
+                            ❌ No causal chain found
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Loading State -->
+                <%= if @bidirectional_loading do %>
+                  <div class="mt-6 text-center">
+                    <.loading_spinner />
+                    <p class="mt-2 text-gray-600">Querying Prolog knowledge base...</p>
+                  </div>
+                <% end %>
+
+                <!-- Explanation -->
+                <div class="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                  <h4 class="font-bold text-yellow-800 mb-3">💡 Why This Matters for Real-World Data</h4>
+                  <div class="text-yellow-800 space-y-2">
+                    <p><strong>Same Causal Rules, Multiple Research Questions:</strong> Our CauseNet rules can answer:</p>
+                    <ul class="list-disc list-inside ml-4 space-y-1">
+                      <li><strong>Risk Factors:</strong> "What does smoking cause?" → lung cancer, heart disease, COPD...</li>
+                      <li><strong>Root Causes:</strong> "What causes heart disease?" → smoking, obesity, stress, genetics...</li>
+                      <li><strong>Causal Pathways:</strong> "Does smoking lead to death?" → Yes, through multiple pathways</li>
+                      <li><strong>Population Health:</strong> Generate ALL risk factor combinations automatically</li>
+                    </ul>
+                    <p class="mt-3"><strong>In traditional epidemiology software:</strong> Each question requires separate database queries, joins, and analysis pipelines!</p>
+                    <p class="mt-2"><strong>With Prolog:</strong> One knowledge base, infinite research questions ✨</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Real-World Applications -->
+              <div class="bg-white rounded-xl shadow-lg p-8">
+                <h3 class="text-xl font-bold text-gray-900 mb-6">🌟 Real-World Applications</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-bold text-blue-800 mb-3">🔍 Database Queries</h4>
+                    <pre class="text-xs bg-gray-100 p-2 rounded font-mono"><code>% One rule for employee-manager relationships
+manages(john, [alice, bob, charlie]).
+manages(alice, [david, eve]).
+
+% Same rule answers:
+% Who does John manage? (forward)
+% Who manages Alice? (backward)  
+% Does John manage Eve indirectly? (verification)</code></pre>
+                  </div>
+                  <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-bold text-purple-800 mb-3">🧮 Mathematical Relations</h4>
+                    <pre class="text-xs bg-gray-100 p-2 rounded font-mono"><code>% One rule for arithmetic
+plus(X, Y, Z) :- Z is X + Y.
+
+% Same rule can:
+% Calculate: plus(3, 4, Z) → Z = 7
+% Subtract: plus(3, Y, 7) → Y = 4  
+% Verify: plus(3, 4, 7) → true</code></pre>
+                  </div>
+                  <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-bold text-green-800 mb-3">🕸️ Graph Traversal</h4>
+                    <pre class="text-xs bg-gray-100 p-2 rounded font-mono"><code>% One rule for connectivity
+connected(A, B) :- edge(A, B).
+connected(A, C) :- edge(A, B), connected(B, C).
+
+% Finds paths in any direction automatically!</code></pre>
+                  </div>
+                  <div class="border border-gray-200 rounded-lg p-4">
+                    <h4 class="font-bold text-orange-800 mb-3">📋 Constraint Satisfaction</h4>
+                    <pre class="text-xs bg-gray-100 p-2 rounded font-mono"><code>% Same CLP(FD) constraints work for:
+% - Generating valid solutions
+% - Validating existing solutions  
+% - Finding partial solutions
+% - Optimizing under constraints</code></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Prolog Code Examples -->
@@ -510,7 +744,7 @@ defmodule PrologDemoWeb.CauseNetLive do
             <!-- Causal Reasoning Code -->
             <div class="bg-gray-50 rounded-lg p-4">
               <h3 class="font-bold text-lg mb-3 text-blue-800">🔗 Causal Path Finding</h3>
-              <pre class="text-xs font-mono overflow-x-auto"><code class="language-prolog">% Entry point: Initialize and reverse the path
+              <pre class="text-xs font-mono overflow-x-auto"><code class="language-prolog">% Advanced path finder with depth control - actual code running in demo
 find_paths(Start, End, MaxDepth, Path) :- 
     find_paths_helper(Start, End, MaxDepth, [Start], RevPath), 
     reverse(RevPath, Path).
@@ -518,60 +752,67 @@ find_paths(Start, End, MaxDepth, Path) :-
 % Base case: We've reached our destination
 find_paths_helper(End, End, _, Visited, Visited).
 
-% Recursive case: Find the next step in the path
+% Recursive case: Find the next step in the path  
 find_paths_helper(Start, End, MaxDepth, Visited, Path) :- 
     MaxDepth > 0,                    % Still have depth to explore
     causes(Start, Next),             % Find what Start causes
-    \+ member(Next, Visited),        % Avoid cycles
-    MaxDepth1 is MaxDepth - 1,       % Decrease depth
+    \+ member(Next, Visited),        % Avoid cycles (cut loops)
+    MaxDepth1 is MaxDepth - 1,       % Decrease remaining depth
     find_paths_helper(Next, End, MaxDepth1, [Next|Visited], Path).
 
-% Simple causal chain
-causal_chain(X, Y) :- causes(X, Y).
-causal_chain(X, Z) :- causes(X, Y), causal_chain(Y, Z).
+% Basic causal relationships - bidirectional rules
+causal_chain(X, Y) :- causes(X, Y).                    % Direct causation
+causal_chain(X, Z) :- causes(X, Y), causal_chain(Y, Z). % Transitive causation
 
-% Causal path with full path tracking
-causal_path(X, Y, [X,Y]) :- causes(X, Y).
-causal_path(X, Z, [X|Path]) :- 
+% Path tracking with length constraints  
+causal_path(X, Y, [X,Y]) :- causes(X, Y).              % Direct path
+causal_path(X, Z, [X|Path]) :-                         % Multi-step path
     causes(X, Y), 
-    causal_path(Y, Z, Path).</code></pre>
+    causal_path(Y, Z, Path).
+
+% Optimized path finders for common cases
+causal_chain(X, Y, MaxLength) :- causes(X, Y), MaxLength >= 1.
+two_step_path(Start, End, [Start, Intermediate, End]) :- 
+    causes(Start, Intermediate), 
+    causes(Intermediate, End), 
+    Start \= Intermediate, Intermediate \= End.
+direct_path(Start, End, [Start, End]) :- causes(Start, End).</code></pre>
             </div>
 
             <!-- N-Queens Code -->
             <div class="bg-gray-50 rounded-lg p-4">
-              <h3 class="font-bold text-lg mb-3 text-purple-800">👑 N-Queens Solver</h3>
-              <pre class="text-xs font-mono overflow-x-auto"><code class="language-prolog">% Main N-Queens solver
-n_queens(N, Solution) :-
-    range(1, N, Positions),          % Generate positions 1..N
-    permutation(Positions, Solution), % Try all permutations
-    queens_safe(Solution).           % Test if queens are safe
+              <h3 class="font-bold text-lg mb-3 text-purple-800">👑 N-Queens CLP(FD) Solver</h3>
+              <pre class="text-xs font-mono overflow-x-auto"><code class="language-prolog">% Main CLP(FD) N-Queens solver - actual code running in demo
+n_queens_solve(NumQueens, Positions) :- 
+    length(Positions, NumQueens),    % Create list of N variables
+    Positions ins 1..NumQueens,      % Each queen in column 1..N
+    safe_queens(Positions),          % Apply safety constraints  
+    label(Positions).                % Find concrete solution
 
-% Generate list from 1 to N
-range(1, 1, [1]) :- !.
-range(1, N, [1|Rest]) :-
-    N > 1,
-    N1 is N - 1,
-    range(2, N, Rest).
-range(M, N, [M|Rest]) :-
-    M &lt; N,
-    M1 is M + 1,
-    range(M1, N, Rest).
-range(N, N, [N]).
+% Safety constraints using CLP(FD)
+safe_queens([]).
+safe_queens([Q|Qs]) :- 
+    safe_queens(Qs), 
+    no_attack(Q, Qs, 1).
 
-% Check if all queens are safe from attacks
-queens_safe([]).
-queens_safe([_]).
-queens_safe([Q1|Rest]) :-
-    safe_from_all(Q1, Rest, 1),
-    queens_safe(Rest).
+% No attacks constraint with CLP(FD) operators
+no_attack(_, [], _).
+no_attack(Q, [Q1|Qs], Dist) :- 
+    Q #\= Q1,                        % Different columns
+    abs(Q - Q1) #\= Dist,           % No diagonal attacks
+    Dist1 #= Dist + 1,              % Increment distance
+    no_attack(Q, Qs, Dist1).
 
-% Check if Q1 is safe from all queens in the list
-safe_from_all(_, [], _).
-safe_from_all(Q1, [Q2|Rest], Dist) :-
-    Q1 - Q2 =\= Dist,
-    Q2 - Q1 =\= Dist,
-    Dist1 is Dist + 1,
-    safe_from_all(Q1, Rest, Dist1).</code></pre>
+% Find multiple solutions with limit for display
+find_n_queens_solutions(NumQueens, Solutions) :- 
+    findall(Positions, n_queens_solve(NumQueens, Positions), AllSolutions), 
+    (length(AllSolutions, Len), Len > 10 -> 
+        length(Solutions, 10), append(Solutions, _, AllSolutions) 
+    ; Solutions = AllSolutions).
+
+% Entry points for different use cases
+n_queens(NumQueens, Solution) :- n_queens_solve(NumQueens, Solution).
+n_queens_solution(NumQueens, Solution) :- n_queens_solve(NumQueens, Solution).</code></pre>
             </div>
 
             <!-- Live Knowledge Base -->
@@ -606,26 +847,36 @@ causal_chain(X, Z) :-                % Indirect causation
 
             <!-- Sudoku Solver -->
             <div class="bg-gray-50 rounded-lg p-4">
-              <h3 class="font-bold text-lg mb-3 text-orange-800">🔢 Sudoku Solver</h3>
-              <pre class="text-xs font-mono overflow-x-auto"><code class="language-prolog">% Main solver using backtracking
-sudoku_solve_cell(Grid, Row, Col) :-
-    get_cell(Grid, Row, Col, Value),
-    (Value > 0 ->                    % Cell already filled?
-        NextCol is Col + 1,          % Move to next cell
-        sudoku_solve_cell(Grid, Row, NextCol)
-    ;
-        between(1, 9, N),            % Try values 1-9
-        valid_move(Grid, Row, Col, N), % Check if valid
-        set_cell(Grid, Row, Col, N, NewGrid),
-        NextCol is Col + 1,
-        sudoku_solve_cell(NewGrid, Row, NextCol)
-    ).
+              <h3 class="font-bold text-lg mb-3 text-orange-800">🔢 Sudoku CLP(FD) Solver</h3>
+              <pre class="text-xs font-mono overflow-x-auto"><code class="language-prolog">% Main CLP(FD) solver - actual code running in demo
+solve_sudoku_puzzle(Puzzle, Solution) :- 
+    Solution = Puzzle, 
+    sudoku(Solution), 
+    ground(Solution).
 
-% Validation: Check row, column, and 3x3 box
-valid_move(Grid, Row, Col, N) :-
-    valid_row(Grid, Row, N),         % N not in row
-    valid_col(Grid, Col, N),         % N not in column
-    valid_box(Grid, Row, Col, N).    % N not in 3x3 box</code></pre>
+% SWI-Prolog CLP(FD) Sudoku solver with constraint propagation
+sudoku(Rows) :- 
+    length(Rows, 9),                 % 9x9 grid
+    maplist(same_length(Rows), Rows), % All rows same length
+    append(Rows, Vars),              % Flatten to variable list
+    Vars ins 1..9,                   % All cells in domain 1-9
+    maplist(all_distinct, Rows),     % All rows distinct
+    transpose(Rows, Cols),           % Get columns
+    maplist(all_distinct, Cols),     % All columns distinct  
+    distinct_squares(Rows),          % 3x3 boxes distinct
+    labeling([], Vars).              % Find concrete solution
+
+% Validate 3x3 squares using constraint propagation
+distinct_squares([]).
+distinct_squares([R1, R2, R3 | Rows]) :- 
+    distinct_square(R1, R2, R3), 
+    distinct_squares(Rows).
+
+% Check one 3x3 square
+distinct_square([], [], []).
+distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
+    all_distinct([N11,N12,N13,N21,N22,N23,N31,N32,N33]),
+    distinct_square(T1, T2, T3).</code></pre>
             </div>
           </div>
 
@@ -648,6 +899,7 @@ valid_move(Grid, Row, Col, N) :-
       :constraints -> "constraints"
       :sudoku -> "sudoku"
       :playground -> "playground"
+      :bidirectional -> "bidirectional"
       _ -> "causal" # default
     end
 
@@ -657,6 +909,7 @@ valid_move(Grid, Row, Col, N) :-
       "constraints" -> PrologDemo.ConstraintSessionManager.facts_loaded?()
       "sudoku" -> PrologDemo.ConstraintSessionManager.facts_loaded?()  # Sudoku uses the same constraint solver
       "playground" -> PrologDemo.PlaygroundSessionManager.facts_loaded?()
+      "bidirectional" -> PrologDemo.PlaygroundSessionManager.facts_loaded?()  # Bidirectional demo uses playground session manager
     end
 
     socket = socket
@@ -682,6 +935,14 @@ valid_move(Grid, Row, Col, N) :-
      |> assign(:loading_progress, 0)
      |> assign(:loading_message, "")
      |> assign(:search_depth, 3)
+     |> assign(:bidirectional_input1, "smoking")
+     |> assign(:bidirectional_input2, "heart_disease") 
+     |> assign(:bidirectional_input3a, "smoking")
+     |> assign(:bidirectional_input3b, "death")
+     |> assign(:bidirectional_results1, nil)
+     |> assign(:bidirectional_results2, nil)
+     |> assign(:bidirectional_results3, nil)
+     |> assign(:bidirectional_loading, false)
      |> maybe_load_facts()
 
     # 🚀 AUTO-GENERATE Sudoku puzzle on page load for Sudoku tab
@@ -789,6 +1050,49 @@ valid_move(Grid, Row, Col, N) :-
     end
   end
 
+  # Bidirectional demo event handlers
+  @impl true
+  def handle_event("update_bidirectional_input1", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :bidirectional_input1, value)}
+  end
+
+  @impl true
+  def handle_event("update_bidirectional_input2", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :bidirectional_input2, value)}
+  end
+
+  @impl true
+  def handle_event("update_bidirectional_input3a", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :bidirectional_input3a, value)}
+  end
+
+  @impl true
+  def handle_event("update_bidirectional_input3b", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :bidirectional_input3b, value)}
+  end
+
+  @impl true
+  def handle_event("query_causes_what", _params, socket) do
+    cause = socket.assigns.bidirectional_input1
+    send(self(), {:query_bidirectional, "causes_what", cause, nil})
+    {:noreply, assign(socket, :bidirectional_loading, true)}
+  end
+
+  @impl true
+  def handle_event("query_what_causes", _params, socket) do
+    effect = socket.assigns.bidirectional_input2
+    send(self(), {:query_bidirectional, "what_causes", effect, nil})
+    {:noreply, assign(socket, :bidirectional_loading, true)}
+  end
+
+  @impl true
+  def handle_event("query_causal_chain", _params, socket) do
+    cause = socket.assigns.bidirectional_input3a
+    effect = socket.assigns.bidirectional_input3b
+    send(self(), {:query_bidirectional, "causal_chain", cause, effect})
+    {:noreply, assign(socket, :bidirectional_loading, true)}
+  end
+
   @impl true
   def handle_info({:find_causal_paths, start, end_concept, depth}, socket) do
     case PrologDemo.CausalSessionManager.query_advanced_causal_paths(start, end_concept, depth) do
@@ -878,12 +1182,69 @@ valid_move(Grid, Row, Col, N) :-
   end
 
   @impl true
+  def handle_info({:query_bidirectional, query_type, param1, param2}, socket) do
+    # Use the CauseNet session manager with real causal data
+    case query_type do
+      "causes_what" ->
+        # Query: What does X cause? (Forward direction)
+        case PrologDemo.CausalSessionManager.query_direct_effects(param1) do
+          {:ok, effects} when is_list(effects) ->
+            {:noreply,
+             socket
+             |> assign(:bidirectional_results1, Enum.sort(effects))
+             |> assign(:bidirectional_loading, false)}
+          {:error, _reason} ->
+            {:noreply,
+             socket
+             |> assign(:bidirectional_results1, [])
+             |> assign(:bidirectional_loading, false)}
+        end
+
+      "what_causes" ->
+        # Query: What causes X? (Backward direction)
+        case PrologDemo.CausalSessionManager.query_direct_causes(param1) do
+          {:ok, causes} when is_list(causes) ->
+            {:noreply,
+             socket
+             |> assign(:bidirectional_results2, Enum.sort(causes))
+             |> assign(:bidirectional_loading, false)}
+          {:error, _reason} ->
+            {:noreply,
+             socket
+             |> assign(:bidirectional_results2, [])
+             |> assign(:bidirectional_loading, false)}
+        end
+
+      "causal_chain" ->
+        # Query: Does causal chain exist between X and Y?
+        case PrologDemo.CausalSessionManager.query_causal_paths(param1, param2) do
+          {:ok, paths} when is_list(paths) and length(paths) > 0 ->
+            {:noreply,
+             socket
+             |> assign(:bidirectional_results3, true)
+             |> assign(:bidirectional_loading, false)}
+          {:ok, []} ->
+            {:noreply,
+             socket
+             |> assign(:bidirectional_results3, false)
+             |> assign(:bidirectional_loading, false)}
+          {:error, _reason} ->
+            {:noreply,
+             socket
+             |> assign(:bidirectional_results3, false)
+             |> assign(:bidirectional_loading, false)}
+        end
+    end
+  end
+
+  @impl true
   def handle_info(:load_facts, socket) do
     # Start loading facts with progress updates for the appropriate demo type
     session_manager = case socket.assigns.demo_type do
       "causal" -> PrologDemo.CausalSessionManager
       "constraints" -> PrologDemo.ConstraintSessionManager
       "playground" -> PrologDemo.PlaygroundSessionManager
+      "bidirectional" -> PrologDemo.PlaygroundSessionManager
     end
 
     Task.start(fn ->
@@ -942,6 +1303,7 @@ valid_move(Grid, Row, Col, N) :-
       "constraints" -> "constraint-solving"
       "sudoku" -> "sudoku-solver"
       "playground" -> "prolog-playground"
+      "bidirectional" -> "bidirectional-demo"
       _ -> "causal-reasoning"
     end
   end
