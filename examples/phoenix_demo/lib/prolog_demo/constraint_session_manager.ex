@@ -53,61 +53,43 @@ defmodule PrologDemo.ConstraintSessionManager do
     case puzzle_type do
       "n_queens" ->
         n = Map.get(params, "n", 4)
-
+        
         start_time = System.monotonic_time(:millisecond)
-
-        # Use async query for potentially long-running N-Queens
+        
+        # Use setof to get all unique solutions
         query = "setof(Solution, n_queens(#{n}, Solution), Solutions)"
-
-        case MQI.query_async(session, query, timeout: 10000) do
-          {:ok, query_id} ->
-            # Poll for result
-            result = wait_for_async_result(session, query_id, 10000)
-            end_time = System.monotonic_time(:millisecond)
-
-            new_monitoring_state = %{monitoring_state |
-              query_count: monitoring_state.query_count + 1,
-              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
-            }
-
-            case result do
+        
+        result = MQI.query(session, query)
+        end_time = System.monotonic_time(:millisecond)
+        
+        new_monitoring_state = %{monitoring_state | 
+          query_count: monitoring_state.query_count + 1,
+          total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
+        }
+        
+        case result do
+          {:ok, [%{"Solutions" => solutions}]} when is_list(solutions) ->
+            {:reply, {:ok, %{
+              n: n,
+              solutions: Enum.take(solutions, 10),  # Limit display to 10
+              count: length(solutions),
+              display_limit: 10
+            }}, %{state | monitoring_state: new_monitoring_state}}
+            
+          _ ->
+            # Fallback: get individual solutions
+            case MQI.query(session, "n_queens(#{n}, Solution)") do
               {:ok, results} ->
-                # Extract all solutions from setof result
-                solutions = case results do
-                  [%{"Solutions" => sols}] when is_list(sols) -> sols
-                  _ -> []
-                end
-
+                solutions = Enum.map(results, fn %{"Solution" => s} -> s end) |> Enum.take(10)
                 {:reply, {:ok, %{
                   n: n,
-                  solutions: Enum.take(solutions, 10),  # Limit display to 10
+                  solutions: solutions,
                   count: length(solutions),
                   display_limit: 10
                 }}, %{state | monitoring_state: new_monitoring_state}}
-
-              {:error, _reason} ->
-                # Fallback to synchronous query with limited results
-                case MQI.query(session, "n_queens(#{n}, Solution)") do
-                  {:ok, results} ->
-                    solutions = Enum.map(results, fn %{"Solution" => s} -> s end) |> Enum.take(10)
-                    {:reply, {:ok, %{
-                      n: n,
-                      solutions: solutions,
-                      count: length(solutions),
-                      display_limit: 10
-                    }}, %{state | monitoring_state: new_monitoring_state}}
-                  {:error, reason} ->
-                    {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
-                end
+              {:error, reason} ->
+                {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
             end
-
-          {:error, reason} ->
-            end_time = System.monotonic_time(:millisecond)
-            new_monitoring_state = %{monitoring_state |
-              query_count: monitoring_state.query_count + 1,
-              total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
-            }
-            {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
         end
 
       "sudoku" ->
@@ -347,7 +329,7 @@ defmodule PrologDemo.ConstraintSessionManager do
     sudoku_solve_cell(Grid, Row, 9) :-
         NextRow is Row + 1,
         sudoku_solve_cell(Grid, NextRow, 0).
-    
+
     % Case 1: Cell already has a value
     sudoku_solve_cell(Grid, Row, Col) :-
         get_cell(Grid, Row, Col, Value),
@@ -355,7 +337,7 @@ defmodule PrologDemo.ConstraintSessionManager do
         !,
         NextCol is Col + 1,
         sudoku_solve_cell(Grid, Row, NextCol).
-    
+
     % Case 2: Cell is empty, try values 1-9
     sudoku_solve_cell(Grid, Row, Col) :-
         get_cell(Grid, Row, Col, 0),
