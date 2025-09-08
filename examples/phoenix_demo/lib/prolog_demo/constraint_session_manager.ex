@@ -55,16 +55,16 @@ defmodule PrologDemo.ConstraintSessionManager do
         n = Map.get(params, "n", 4)
         # Return hardcoded solutions for common N values to avoid MQI issues
         solutions = get_n_queens_solutions(n)
-        
+
         start_time = System.monotonic_time(:millisecond)
         :timer.sleep(20 * n) # Simulate computation time based on N
         end_time = System.monotonic_time(:millisecond)
-        
-        new_monitoring_state = %{monitoring_state | 
+
+        new_monitoring_state = %{monitoring_state |
           query_count: monitoring_state.query_count + 1,
           total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
         }
-        
+
         {:reply, {:ok, %{
           n: n,
           solutions: solutions,
@@ -78,12 +78,12 @@ defmodule PrologDemo.ConstraintSessionManager do
         start_time = System.monotonic_time(:millisecond)
         :timer.sleep(50) # Simulate computation
         end_time = System.monotonic_time(:millisecond)
-        
-        new_monitoring_state = %{monitoring_state | 
+
+        new_monitoring_state = %{monitoring_state |
           query_count: monitoring_state.query_count + 1,
           total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
         }
-        
+
         {:reply, {:ok, get_hardcoded_sudoku_solution()}, %{state | monitoring_state: new_monitoring_state}}
 
       _ ->
@@ -145,11 +145,11 @@ defmodule PrologDemo.ConstraintSessionManager do
       count: 1
     }
   end
-  
+
   defp get_n_queens_solutions(n) do
     case n do
       4 -> [[2,4,1,3], [3,1,4,2]]
-      5 -> [[1,3,5,2,4], [1,4,2,5,3], [2,4,1,3,5], [2,5,3,1,4], [3,1,4,2,5], 
+      5 -> [[1,3,5,2,4], [1,4,2,5,3], [2,4,1,3,5], [2,5,3,1,4], [3,1,4,2,5],
             [3,5,2,4,1], [4,1,3,5,2], [4,2,5,3,1], [5,2,4,1,3], [5,3,1,4,2]]
       6 -> [[2,4,6,1,3,5], [3,6,2,5,1,4], [4,1,5,2,6,3], [5,3,1,6,4,2]]
       7 -> [[1,3,5,7,2,4,6], [1,4,7,3,6,2,5], [1,5,2,6,3,7,4], [1,6,4,2,7,5,3],

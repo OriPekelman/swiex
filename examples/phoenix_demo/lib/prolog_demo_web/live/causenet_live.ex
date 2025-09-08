@@ -218,44 +218,57 @@ defmodule PrologDemoWeb.CauseNetLive do
               <!-- Sudoku Puzzle -->
               <div class="bg-white rounded-xl shadow-lg p-8">
                 <h2 class="text-2xl font-bold text-gray-900 mb-6">🔢 Sudoku Solver</h2>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div>
-                    <div class="mb-6">
-                      <h3 class="text-lg font-semibold text-gray-800 mb-4">Sample Sudoku Puzzle</h3>
-                      <div class="bg-gray-50 p-4 rounded-lg">
-                        <div class="grid grid-cols-9 gap-1 text-sm font-mono">
-                          <%= for row <- [
-                            [5,3,0,0,7,0,0,0,0],
-                            [6,0,0,1,9,5,0,0,0],
-                            [0,9,8,0,0,0,0,6,0],
-                            [8,0,0,0,6,0,0,0,3],
-                            [4,0,0,8,0,3,0,0,1],
-                            [7,0,0,0,2,0,0,0,6],
-                            [0,6,0,0,0,0,2,8,0],
-                            [0,0,0,4,1,9,0,0,5],
-                            [0,0,0,0,8,0,0,7,9]
-                          ] do %>
-                            <%= for cell <- row do %>
-                              <div class="w-8 h-8 flex items-center justify-center border border-gray-300 bg-white">
-                                <%= if cell == 0, do: "", else: cell %>
-                              </div>
-                            <% end %>
-                          <% end %>
-                        </div>
-                      </div>
-                      <p class="text-sm text-gray-600 mt-2">
-                        This is a classic Sudoku puzzle where 0 represents empty cells.
-                        Prolog will use backtracking to find the solution.
-                      </p>
-                    </div>
+                <div class="space-y-6">
+                  <div class="text-center">
+                    <p class="text-lg text-gray-700 mb-2">
+                      Classic Sudoku puzzle where empty cells need to be filled with digits 1-9
+                    </p>
+                    <p class="text-sm text-gray-600">
+                      Each row, column, and 3×3 box must contain all digits from 1 to 9 exactly once.
+                    </p>
+                  </div>
+                  
+                  <div class="flex justify-center">
                     <button
                       phx-click="solve_sudoku"
-                      class="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
+                      class="bg-green-600 text-white py-3 px-8 rounded-lg font-medium hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
                     >
                       🧩 Solve Sudoku
                     </button>
                   </div>
-                  <div class="space-y-4">
+                  
+                  <!-- Always show the puzzle grid -->
+                  <div class="flex justify-center">
+                    <div>
+                      <div class="text-sm font-medium text-gray-700 mb-2 text-center">Puzzle</div>
+                      <div style="display: inline-grid; grid-template-columns: repeat(9, 40px); gap: 0; border: 3px solid #1f2937;">
+                        <% puzzle = if @sudoku_results, do: @sudoku_results[:puzzle], else: [
+                          [5,3,0,0,7,0,0,0,0],
+                          [6,0,0,1,9,5,0,0,0],
+                          [0,9,8,0,0,0,0,6,0],
+                          [8,0,0,0,6,0,0,0,3],
+                          [4,0,0,8,0,3,0,0,1],
+                          [7,0,0,0,2,0,0,0,6],
+                          [0,6,0,0,0,0,2,8,0],
+                          [0,0,0,4,1,9,0,0,5],
+                          [0,0,0,0,8,0,0,7,9]
+                        ] %>
+                        <%= for {row, row_idx} <- Enum.with_index(puzzle) do %>
+                          <%= for {cell, col_idx} <- Enum.with_index(row) do %>
+                            <% border_right = if rem(col_idx + 1, 3) == 0 && col_idx < 8, do: "border-right: 2px solid #1f2937;", else: "border-right: 1px solid #d1d5db;" %>
+                            <% border_bottom = if rem(row_idx + 1, 3) == 0 && row_idx < 8, do: "border-bottom: 2px solid #1f2937;", else: "border-bottom: 1px solid #d1d5db;" %>
+                            <div style={"width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; #{border_right} #{border_bottom} background-color: #{if cell == 0, do: "#f9fafb", else: "#e5e7eb"};"}>
+                              <span style={"font-weight: #{if cell == 0, do: "normal", else: "bold"}; color: #{if cell == 0, do: "#9ca3af", else: "#111827"};"}>
+                                <%= if cell == 0, do: "", else: cell %>
+                              </span>
+                            </div>
+                          <% end %>
+                        <% end %>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
                     <%= if @sudoku_loading do %>
                       <div class="text-center py-8">
                         <.loading_spinner />
@@ -263,35 +276,17 @@ defmodule PrologDemoWeb.CauseNetLive do
                         <p class="text-sm text-gray-500 mt-2">This may take a moment as Prolog explores all possibilities</p>
                       </div>
                     <% else %>
-                      <%= if @sudoku_results do %>
-                        <div class="mb-4">
-                          <div class="text-lg font-semibold text-gray-900 mb-2">
-                            Sudoku Solution
-                          </div>
-                          <div class="text-sm text-gray-600">Solved in <%= @sudoku_results[:time_ms] || "< 1" %>ms</div>
-                        </div>
-
-                        <%= if @sudoku_results[:solution] do %>
-                          <div class="flex gap-8 justify-center">
-                            <!-- Original Puzzle -->
-                            <div>
-                              <div class="text-sm font-medium text-gray-700 mb-2 text-center">Puzzle</div>
-                              <div style="display: inline-grid; grid-template-columns: repeat(9, 40px); gap: 0; border: 3px solid #1f2937;">
-                                <%= for {row, row_idx} <- Enum.with_index(@sudoku_results[:puzzle] || List.duplicate(List.duplicate(0, 9), 9)) do %>
-                                  <%= for {cell, col_idx} <- Enum.with_index(row) do %>
-                                    <% border_right = if rem(col_idx + 1, 3) == 0 && col_idx < 8, do: "border-right: 2px solid #1f2937;", else: "border-right: 1px solid #d1d5db;" %>
-                                    <% border_bottom = if rem(row_idx + 1, 3) == 0 && row_idx < 8, do: "border-bottom: 2px solid #1f2937;", else: "border-bottom: 1px solid #d1d5db;" %>
-                                    <div style={"width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; #{border_right} #{border_bottom} background-color: #{if cell == 0, do: "#f9fafb", else: "#e5e7eb"};"}>
-                                      <span style={"font-weight: #{if cell == 0, do: "normal", else: "bold"}; color: #{if cell == 0, do: "#9ca3af", else: "#111827"};"}>
-                                        <%= if cell == 0, do: "", else: cell %>
-                                      </span>
-                                    </div>
-                                  <% end %>
-                                <% end %>
-                              </div>
+                      <%= if @sudoku_results && @sudoku_results[:solution] do %>
+                        <div class="mt-8">
+                          <div class="text-center mb-4">
+                            <div class="text-lg font-semibold text-gray-900">
+                              ✅ Solution Found!
                             </div>
+                            <div class="text-sm text-gray-600">Solved in <%= @sudoku_results[:time_ms] || "< 1" %>ms</div>
+                          </div>
 
-                            <!-- Solution -->
+                          <!-- Solution Grid -->
+                          <div class="flex justify-center">
                             <div>
                               <div class="text-sm font-medium text-gray-700 mb-2 text-center">Solution</div>
                               <div style="display: inline-grid; grid-template-columns: repeat(9, 40px); gap: 0; border: 3px solid #1f2937;">
@@ -310,11 +305,6 @@ defmodule PrologDemoWeb.CauseNetLive do
                               </div>
                             </div>
                           </div>
-                        <% end %>
-                      <% else %>
-                        <div class="text-center text-gray-500 py-8">
-                          <div class="text-4xl mb-2">🔢</div>
-                          <p>Click solve to see the solution</p>
                         </div>
                       <% end %>
                     <% end %>
