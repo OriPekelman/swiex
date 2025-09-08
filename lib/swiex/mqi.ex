@@ -104,7 +104,7 @@ defmodule Swiex.MQI do
     # Generate a unique query ID
     query_id = generate_query_id()
     timeout = Keyword.get(opts, :timeout, -1)
-    
+
     # Use a longer timeout for the initial async request
     socket_timeout = if timeout > 0, do: timeout + 5000, else: @default_timeout
 
@@ -118,11 +118,11 @@ defmodule Swiex.MQI do
           error
       end
     else
-      {:error, :query_timeout} -> 
+      {:error, :query_timeout} ->
         # If initial timeout, try to cancel the query
         _ = cancel_async(session, query_id)
         {:error, :async_init_timeout}
-      error -> 
+      error ->
         {:error, error}
     end
   end

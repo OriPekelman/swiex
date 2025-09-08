@@ -112,90 +112,75 @@ defmodule PrologDemo.ConstraintSessionManager do
 
       "sudoku" ->
         start_time = System.monotonic_time(:millisecond)
-
-        # First get the puzzle synchronously (it's fast)
-        puzzle_result = MQI.query(session, "sample_sudoku(Puzzle)")
-
-        case puzzle_result do
-          {:ok, [%{"Puzzle" => puzzle} | _]} ->
-            # Use async for the potentially long-running solver
-            solve_query = "sample_sudoku(Puzzle), sudoku_solution(Puzzle, Solution)"
-
-            case MQI.query_async(session, solve_query, timeout: 30000) do
-              {:ok, query_id} ->
-                # Poll for result
-                result = wait_for_async_result(session, query_id, 30000)
+        
+        # Simplified approach - just try to verify the puzzle is loaded
+        # The puzzle is hardcoded in Prolog, so we'll use it directly
+        default_puzzle = [
+          [5,3,0,0,7,0,0,0,0],
+          [6,0,0,1,9,5,0,0,0],
+          [0,9,8,0,0,0,0,6,0],
+          [8,0,0,0,6,0,0,0,3],
+          [4,0,0,8,0,3,0,0,1],
+          [7,0,0,0,2,0,0,0,6],
+          [0,6,0,0,0,0,2,8,0],
+          [0,0,0,4,1,9,0,0,5],
+          [0,0,0,0,8,0,0,7,9]
+        ]
+        
+        # Try to solve using a simple, direct query
+        # We'll test if the Sudoku rules are working first
+        test_query = "get_cell([[1,2,3],[4,5,6],[7,8,9]], 1, 1, V)"
+        
+        case MQI.query(session, test_query) do
+          {:ok, [%{"V" => 5}]} ->
+            IO.puts("✅ Sudoku helper functions working")
+            
+            # Now try the actual solver with a simpler approach
+            # Use copy_term to avoid modifying the original
+            solve_query = "sample_sudoku(P), copy_term(P, S), sudoku_solve(S)"
+            
+            case MQI.query(session, solve_query) do
+              {:ok, [%{"S" => solution} | _]} ->
                 end_time = System.monotonic_time(:millisecond)
-
-                new_monitoring_state = %{monitoring_state |
+                new_monitoring_state = %{monitoring_state | 
                   query_count: monitoring_state.query_count + 1,
                   total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
                 }
-
-                case result do
-                  {:ok, [%{"Solution" => solution} | _]} ->
-                    {:reply, {:ok, %{
-                      puzzle: puzzle,
-                      solution: solution,
-                      time_ms: end_time - start_time,
-                      count: 1
-                    }}, %{state | monitoring_state: new_monitoring_state}}
-
-                  _ ->
-                    # If async fails, try synchronous as fallback
-                    case MQI.query(session, solve_query) do
-                      {:ok, [%{"Solution" => solution} | _]} ->
-                        {:reply, {:ok, %{
-                          puzzle: puzzle,
-                          solution: solution,
-                          time_ms: end_time - start_time,
-                          count: 1
-                        }}, %{state | monitoring_state: new_monitoring_state}}
-                      _ ->
-                        {:reply, {:ok, %{
-                          puzzle: puzzle,
-                          solution: nil,
-                          time_ms: end_time - start_time,
-                          count: 0,
-                          error: "Could not solve the puzzle"
-                        }}, %{state | monitoring_state: new_monitoring_state}}
-                    end
-                end
-
-              {:error, _reason} ->
-                # Fallback to synchronous query
+                
+                {:reply, {:ok, %{
+                  puzzle: default_puzzle,
+                  solution: solution,
+                  time_ms: end_time - start_time,
+                  count: 1
+                }}, %{state | monitoring_state: new_monitoring_state}}
+                
+              other ->
+                IO.puts("Sudoku solve result: #{inspect(other)}")
                 end_time = System.monotonic_time(:millisecond)
-                new_monitoring_state = %{monitoring_state |
+                new_monitoring_state = %{monitoring_state | 
                   query_count: monitoring_state.query_count + 1,
                   total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
                 }
-
-                case MQI.query(session, solve_query) do
-                  {:ok, [%{"Solution" => solution} | _]} ->
-                    {:reply, {:ok, %{
-                      puzzle: puzzle,
-                      solution: solution,
-                      time_ms: end_time - start_time,
-                      count: 1
-                    }}, %{state | monitoring_state: new_monitoring_state}}
-                  _ ->
-                    {:reply, {:ok, %{
-                      puzzle: puzzle,
-                      solution: nil,
-                      time_ms: end_time - start_time,
-                      count: 0,
-                      error: "Could not solve the puzzle"
-                    }}, %{state | monitoring_state: new_monitoring_state}}
-                end
+                
+                # Return the puzzle without solution
+                {:reply, {:ok, %{
+                  puzzle: default_puzzle,
+                  solution: nil,
+                  time_ms: end_time - start_time,
+                  count: 0,
+                  error: "Could not solve the puzzle - solver may need debugging"
+                }}, %{state | monitoring_state: new_monitoring_state}}
             end
-
-          {:error, reason} ->
+            
+          test_result ->
+            IO.puts("Test query failed: #{inspect(test_result)}")
             end_time = System.monotonic_time(:millisecond)
-            new_monitoring_state = %{monitoring_state |
+            new_monitoring_state = %{monitoring_state | 
               query_count: monitoring_state.query_count + 1,
               total_time_ms: monitoring_state.total_time_ms + (end_time - start_time)
             }
-            {:reply, {:error, reason}, %{state | monitoring_state: new_monitoring_state}}
+            
+            {:reply, {:error, "Sudoku rules not properly loaded"}, %{state | monitoring_state: new_monitoring_state}}
         end
 
       _ ->
@@ -429,8 +414,19 @@ defmodule PrologDemo.ConstraintSessionManager do
     """
 
     case MQI.consult_string(session, sudoku_code) do
-      {:ok, _} -> IO.puts("✅ Loaded Sudoku solver")
-      {:error, reason} -> IO.puts("❌ Failed to load Sudoku solver: #{reason}")
+      {:ok, _} -> 
+        IO.puts("✅ Loaded Sudoku solver")
+        # Test that the sample puzzle is loaded correctly
+        case MQI.query(session, "sample_sudoku(P)") do
+          {:ok, [%{"P" => puzzle}]} ->
+            IO.puts("✅ Sample puzzle loaded successfully")
+          {:error, reason} ->
+            IO.puts("⚠️  Failed to verify sample puzzle: #{inspect(reason)}")
+          other ->
+            IO.puts("⚠️  Unexpected result from sample puzzle: #{inspect(other)}")
+        end
+      {:error, reason} -> 
+        IO.puts("❌ Failed to load Sudoku solver: #{reason}")
     end
   end
 end

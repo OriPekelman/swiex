@@ -715,8 +715,8 @@ valid_move(Grid, Row, Col, N) :-
   @impl true
   def handle_info({:solve_sudoku}, socket) do
     # Use a longer timeout for Sudoku solving
-    case GenServer.call(PrologDemo.ConstraintSessionManager, 
-                        {:query_constraint_solver, "sudoku", %{}}, 
+    case GenServer.call(PrologDemo.ConstraintSessionManager,
+                        {:query_constraint_solver, "sudoku", %{}},
                         60_000) do  # 60 second timeout
       {:ok, solutions} ->
         {:noreply,
@@ -740,8 +740,8 @@ valid_move(Grid, Row, Col, N) :-
   @impl true
   def handle_info({:solve_n_queens, n}, socket) do
     # Use a longer timeout for N-Queens solving
-    case GenServer.call(PrologDemo.ConstraintSessionManager, 
-                        {:query_constraint_solver, "n_queens", %{"n" => n}}, 
+    case GenServer.call(PrologDemo.ConstraintSessionManager,
+                        {:query_constraint_solver, "n_queens", %{"n" => n}},
                         60_000) do  # 60 second timeout
       {:ok, solutions} ->
         {:noreply,
