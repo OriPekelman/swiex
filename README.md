@@ -1,21 +1,33 @@
-# Swiex - SWI-Prolog MQI Client for Elixir
+# Swiex - Multi-Adapter Prolog Integration for Elixir
 
-Swiex is an Elixir library that provides a client for SWI-Prolog's Machine Query Interface (MQI), allowing you to execute Prolog queries and define inline Prolog code directly from Elixir applications.
+Swiex is an Elixir library that provides seamless integration with multiple Prolog implementations, including SWI-Prolog (via MQI), Erlog, and Scryer Prolog. Execute Prolog queries, define inline logic, and leverage constraint solving directly from your Elixir applications.
 
-**Now with Hybrid DSL Support**: Choose between natural Elixir syntax or raw Prolog code - or mix both approaches seamlessly!
+**Version 0.3.0**: Now with multi-adapter architecture, monitoring capabilities, and a comprehensive Phoenix demo application showcasing real-world Prolog integration!
 
 ## Features
 
-- **Full MQI Protocol Support** - Implements the official SWI-Prolog MQI protocol
+### Core Capabilities
+- **Multi-Adapter Architecture** - Support for SWI-Prolog, Erlog, and Scryer Prolog
+- **Full MQI Protocol Support** - Complete implementation of SWI-Prolog's Machine Query Interface
 - **Persistent Sessions** - Maintain stateful connections for complex workflows
 - **Inline Prolog Code** - Define facts and rules on-the-fly using `assertz/1`
 - **Variable Binding Extraction** - Clean map-based results with variable names
-- **Phoenix Integration** - Ready-to-use examples for web applications
 - **Hybrid DSL Support** - Choose between Elixir DSL syntax and raw Prolog code
 - **Pin Operator Support** - Variable interpolation in DSL queries using `^` operator
 - **Streaming Results** - Handle large datasets efficiently with configurable chunk sizes
 - **Transaction Support** - Atomic operations with automatic session management
-- **Security Features** - Query validation and sanitization to prevent injection attacks. Because  that is a thing.
+- **Security Features** - Query validation and sanitization to prevent injection attacks
+
+### New in v0.3.0
+- **Adapter Abstraction** - Unified interface for multiple Prolog implementations
+- **Performance Monitoring** - Real-time query statistics and session health tracking
+- **Phoenix Demo Application** - Full-featured web app demonstrating:
+  - Medical causal reasoning with CauseNet data
+  - Constraint solving (N-Queens with all 92 solutions, Sudoku)
+  - Interactive Prolog playground
+  - Multi-adapter comparison interface
+  - Real-time monitoring dashboard
+- **Enhanced Testing** - Comprehensive test suite with proper concurrent test isolation
 
 ## Status: Pre-Alpha forever
 
@@ -29,7 +41,9 @@ Add `swiex` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:swiex, "~> 0.2.0"}
+    {:swiex, "~> 0.3.0"}
+    # Optional: Add for Erlog support
+    # {:erlog, github: "rvirding/erlog", branch: "develop", optional: true}
   ]
 end
 ```
@@ -336,9 +350,67 @@ The library returns `{:error, reason}` for various error conditions:
 - **Existence errors** - Undefined predicates
 - **Protocol errors** - MQI communication issues
 
+## Multi-Adapter Support
+
+Swiex now supports multiple Prolog implementations through a unified adapter interface:
+
+### Available Adapters
+
+- **SWI-Prolog** (via MQI) - Full-featured, production-ready
+- **Erlog** - Embedded Erlang-based Prolog (experimental)
+- **Scryer Prolog** - ISO-compliant Prolog (experimental)
+
+### Using Different Adapters
+
+```elixir
+# Use the default adapter (SWI-Prolog)
+{:ok, results} = Swiex.Prolog.query("member(X, [1,2,3])")
+
+# Specify a different adapter
+{:ok, results} = Swiex.Prolog.query("member(X, [1,2,3])", adapter: Swiex.Adapters.ErlogAdapter)
+
+# Start a session with a specific adapter
+{:ok, session} = Swiex.Prolog.start_session(adapter: Swiex.Adapters.ScryerAdapter)
+
+# Compare results across all adapters
+results = Swiex.Prolog.query_all("member(X, [1,2,3])")
+```
+
+## Phoenix Demo Application
+
+The `examples/phoenix_demo` directory contains a comprehensive web application showcasing Swiex capabilities:
+
+### Features
+
+- **Medical Causal Reasoning** - Interactive exploration of cause-effect relationships using CauseNet data
+- **Constraint Solving** - N-Queens solver (returns all 92 solutions for 8-Queens), Sudoku solver with CLP(FD)
+- **Prolog Playground** - Browser-based REPL with syntax highlighting
+- **Multi-Adapter Comparison** - Side-by-side performance testing
+- **Real-time Monitoring** - Live statistics dashboard for SWI-Prolog MQI sessions
+
+### Running the Demo
+
+```bash
+cd examples/phoenix_demo
+mix deps.get
+mix phx.server
+# Visit http://localhost:4000
+```
+
 ## Architecture
 
-Swiex uses SWI-Prolog's official MQI protocol:
+### Core Architecture
+
+Swiex uses a modular adapter-based architecture:
+
+1. **Adapter Interface** - Common behavior for all Prolog implementations
+2. **Session Management** - Persistent connections with automatic cleanup
+3. **Monitoring** - Performance tracking and statistics collection
+4. **Security** - Query validation and sanitization
+
+### SWI-Prolog MQI Protocol
+
+For SWI-Prolog specifically:
 
 1. **Server Management** - Automatically starts `swipl mqi --write_connection_values=true`
 2. **Connection Handling** - TCP socket communication with proper framing

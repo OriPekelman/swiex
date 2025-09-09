@@ -1,5 +1,64 @@
 # Changelog
 
+## [0.3.0] - 2025-01-09
+
+### Added
+- **Multi-Adapter Architecture**: Support for multiple Prolog implementations
+  - SWI-Prolog adapter via MQI protocol (full-featured)
+  - Erlog adapter for embedded Erlang-based Prolog (experimental)
+  - Scryer Prolog adapter (experimental)
+  - Unified `Swiex.Prolog` module for adapter-agnostic operations
+  - Runtime adapter switching and comparison capabilities
+- **Monitoring Module**: New `Swiex.Monitoring` module for performance tracking
+  - Query execution monitoring with timing and inference counting
+  - Session-level statistics aggregation
+  - Real-time monitoring dashboard for Phoenix applications
+- **Phoenix Demo Application**: Comprehensive showcase of Swiex capabilities
+  - **CauseNet Integration**: Real-world causal reasoning with medical data
+    - Interactive causal path exploration
+    - Medical diagnosis simulation
+    - Bidirectional search capabilities
+  - **Constraint Solving Demos**:
+    - N-Queens solver with all 92 solutions for 8-Queens
+    - Sudoku solver with CLP(FD) integration
+    - Elixir-Prolog hybrid puzzle generation
+  - **Prolog Playground**: Interactive REPL in web browser
+  - **Multi-Adapter Comparison**: Side-by-side adapter performance testing
+  - **SWI-Prolog MQI Monitoring Dashboard**: Real-time session statistics
+- **Improved Test Suite**:
+  - Comprehensive MQI protocol tests
+  - Adapter-specific test suites
+  - Better error handling and skip documentation
+  - Fixed concurrent test issues with proper isolation
+
+### Changed
+- **MQI Module Enhancements**:
+  - Better session management with automatic cleanup
+  - Improved error handling and recovery
+  - Enhanced logging and debugging capabilities
+  - Support for async operations (experimental)
+- **Project Structure**:
+  - Modular adapter architecture
+  - Clear separation of concerns between adapters
+  - Improved documentation and examples
+
+### Fixed
+- **Test Reliability**: 
+  - Fixed ErlogAdapter test error format expectations
+  - Resolved compound term format issues in MQI tests
+  - Properly skipped unreliable concurrent tests with documentation
+  - Fixed memory leak test hanging issues
+- **N-Queens Solver**: Fixed artificial 10-solution limit, now returns all 92 solutions for 8-Queens
+- **Monitoring Display**: Simplified and improved monitoring dashboard with real-time updates
+
+### Examples
+- **Phoenix Demo**: Full-featured web application at `examples/phoenix_demo/`
+  - Medical causal reasoning with CauseNet data
+  - Interactive constraint solving (N-Queens, Sudoku)
+  - Prolog playground with syntax highlighting
+  - Multi-adapter comparison interface
+  - Real-time monitoring dashboard
+
 ## [0.2.0] - 2024-12-19
 
 ### Added
