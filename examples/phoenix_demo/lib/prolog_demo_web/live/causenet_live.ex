@@ -12,10 +12,6 @@ defmodule PrologDemoWeb.CauseNetLive do
           <h1 class="text-4xl font-bold text-gray-900 mb-4">
             🧠 CauseNet + Prolog Demo
           </h1>
-          <p class="text-xl text-gray-600 max-w-3xl mx-auto">
-            Experience the power of logic programming with real-world causal relationships from CauseNet.
-            See how Prolog's backtracking and constraint solving can solve complex problems in just a few lines.
-          </p>
         </div>
 
         <!-- Navigation Tabs -->

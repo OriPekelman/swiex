@@ -17,11 +17,14 @@ defmodule PrologDemoWeb.Router do
   scope "/", PrologDemoWeb do
     pipe_through :browser
 
-    get "/", PrologController, :index
+    # Serve CauseNet demo as the root page
+    live "/", CauseNetLive, :causal
+    
+    # Keep the old Prolog demo at /prolog
     get "/prolog", PrologController, :index
     post "/prolog/query", PrologController, :query
 
-    # CauseNet demo routes - separate URLs for each demo
+    # CauseNet demo routes - keep these for direct navigation
     live "/causenet", CauseNetLive, :causal
     live "/causenet/causal", CauseNetLive, :causal
     live "/causenet/constraints", CauseNetLive, :constraints
@@ -29,6 +32,13 @@ defmodule PrologDemoWeb.Router do
     live "/causenet/playground", CauseNetLive, :playground
     live "/causenet/bidirectional", CauseNetLive, :bidirectional
     live "/causenet/adapters", CauseNetLive, :adapters
+    
+    # Also make constraints available at root level
+    live "/constraints", CauseNetLive, :constraints
+    live "/sudoku", CauseNetLive, :sudoku
+    live "/playground", CauseNetLive, :playground
+    live "/bidirectional", CauseNetLive, :bidirectional
+    live "/adapters", CauseNetLive, :adapters
 
     # Monitoring dashboard
     live "/monitoring", MonitoringLive, :index
