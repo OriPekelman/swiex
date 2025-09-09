@@ -3,7 +3,7 @@ defmodule PrologDemo.CauseNetDataLoader do
   Loads real CauseNet precision dataset from JSONL file and converts to Prolog facts.
   """
 
-  @data_file "/Users/oripekelman/sites/swiex/examples/phoenix_demo/example_data/causenet-precision.jsonl"
+  @data_file Path.join([__DIR__, "..", "..", "example_data", "causenet-precision.jsonl"])
 
   def load_causenet_data do
     case File.read(@data_file) do
@@ -108,98 +108,6 @@ defmodule PrologDemo.CauseNetDataLoader do
     end)
   end
 
-  defp get_death_related_fallback_data do
-    [
-      {"smoking", "death"},
-      {"lung_cancer", "death"},
-      {"heart_disease", "death"},
-      {"obesity", "death"},
-      {"diabetes", "death"},
-      {"alcohol", "death"},
-      {"accident", "death"},
-      {"global_warming", "death"},
-      {"pollution", "death"},
-      {"poverty", "death"},
-      {"war", "death"},
-      {"disease", "death"},
-      {"old_age", "death"},
-      {"stress", "death"},
-      {"depression", "death"},
-      {"suicide", "death"},
-      {"overdose", "death"},
-      {"violence", "death"},
-      {"famine", "death"},
-      {"malnutrition", "death"}
-    ]
-  end
-
-  defp get_fallback_data do
-    [
-      # Smoking-related causal chains (important for demo)
-      {"smoking", "lung_cancer"},
-      {"lung_cancer", "death"},
-      {"smoking", "heart_disease"},
-      {"heart_disease", "death"},
-      {"smoking", "stroke"},
-      {"stroke", "death"},
-      {"smoking", "copd"},
-      {"copd", "death"},
-      {"smoking", "cervical_cancer"},
-      {"cervical_cancer", "death"},
-      {"smoking", "death"},
-
-      # Obesity-related chains
-      {"obesity", "diabetes"},
-      {"diabetes", "heart_disease"},
-      {"obesity", "high_blood_pressure"},
-      {"high_blood_pressure", "heart_disease"},
-      {"obesity", "sleep_apnea"},
-      {"sleep_apnea", "heart_disease"},
-      {"obesity", "death"},
-
-      # Stress and mental health
-      {"stress", "high_blood_pressure"},
-      {"stress", "heart_disease"},
-      {"stress", "depression"},
-      {"depression", "suicide"},
-      {"suicide", "death"},
-      {"stress", "death"},
-
-      # Alcohol-related chains
-      {"alcohol", "liver_disease"},
-      {"liver_disease", "death"},
-      {"alcohol", "accident"},
-      {"accident", "death"},
-      {"alcohol", "depression"},
-      {"alcohol", "death"},
-
-      # Environmental factors
-      {"global_warming", "drought"},
-      {"drought", "famine"},
-      {"famine", "death"},
-      {"global_warming", "death"},
-      {"pollution", "respiratory_disease"},
-      {"respiratory_disease", "death"},
-      {"pollution", "death"},
-
-      # Social factors
-      {"poverty", "malnutrition"},
-      {"malnutrition", "death"},
-      {"poverty", "death"},
-      {"war", "death"},
-      {"disease", "death"},
-      {"old_age", "death"},
-
-      # Additional health connections
-      {"drug_use", "overdose"},
-      {"overdose", "death"},
-      {"drug_use", "death"},
-      {"diabetes", "stroke"},
-      {"high_blood_pressure", "stroke"},
-      {"anxiety", "depression"},
-      {"obesity", "depression"}
-    ]
-  end
 
   def to_prolog_facts(relationships) do
     relationships

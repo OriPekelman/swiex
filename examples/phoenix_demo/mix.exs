@@ -70,10 +70,10 @@ defmodule PrologDemo.MixProject do
     [
       setup: ["deps.get", "assets.setup", "assets.build"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind phoenix_demo", "esbuild phoenix_demo"],
+      "assets.build": ["tailwind prolog_demo", "esbuild prolog_demo"],
       "assets.deploy": [
-        "tailwind phoenix_demo --minify",
-        "esbuild phoenix_demo --minify",
+        "tailwind prolog_demo --minify",
+        "esbuild prolog_demo --minify",
         "phx.digest"
       ]
     ]

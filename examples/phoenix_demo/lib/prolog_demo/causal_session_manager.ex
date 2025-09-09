@@ -17,11 +17,10 @@ defmodule PrologDemo.CausalSessionManager do
         # Initialize monitoring
         monitoring_state = Monitoring.init(debug_enabled: false, rate_limit_ms: 1000)
 
-        # Load only causal reasoning data
-        load_causenet_data(session)
+        # Load only causal reasoning rules (data loaded on-demand)
         load_causal_rules(session)
 
-        {:ok, %{session: session, loaded: true, monitoring_state: monitoring_state}}
+        {:ok, %{session: session, loaded: false, monitoring_state: monitoring_state}}
       {:error, reason} ->
         {:stop, {:error, "Failed to start MQI session: #{reason}"}}
     end
@@ -45,6 +44,10 @@ defmodule PrologDemo.CausalSessionManager do
 
   def facts_loaded? do
     GenServer.call(__MODULE__, :facts_loaded?)
+  end
+
+  def get_session do
+    GenServer.call(__MODULE__, :get_session)
   end
 
   def load_facts_with_progress(pid) do
@@ -199,25 +202,49 @@ defmodule PrologDemo.CausalSessionManager do
     {:reply, loaded, state}
   end
 
+  def handle_call(:get_session, _from, %{session: session} = state) do
+    {:reply, {:ok, session}, state}
+  end
+
+  def handle_call({:load_dataset, size}, _from, %{session: session} = state) do
+    result = case size do
+      :small ->
+        load_causenet_data_subset(session, 100)
+      :medium ->
+        load_causenet_data_subset(session, 500)
+      :large ->
+        load_causenet_data_subset(session, 2000)
+      :full ->
+        load_causenet_data_full(session)
+    end
+    
+    case result do
+      {:ok, count} ->
+        {:reply, {:ok, count}, %{state | loaded: true}}
+      error ->
+        {:reply, error, state}
+    end
+  end
+
   def handle_call({:load_facts_with_progress, pid}, _from, %{session: session} = state) do
     # Send progress updates to the LiveView
     send(pid, {:facts_loading_progress, 10, "Starting causal reasoning setup..."})
 
-    # Load CauseNet data with progress updates
+    # Load CauseNet data with progress updates (default to small for backward compatibility)
     send(pid, {:facts_loading_progress, 30, "Loading CauseNet relationships..."})
-    load_causenet_data(session)
-
-    send(pid, {:facts_loading_progress, 60, "Loading causal reasoning rules..."})
-    load_causal_rules(session)
-
-    send(pid, {:facts_loading_progress, 90, "Finalizing causal knowledge base..."})
-
-    # Test that everything is working
-    case MQI.query(session, "causes(_, _)") do
-      {:ok, results} ->
-        send(pid, {:facts_loading_progress, 100, "Loaded #{length(results)} causal relationships!"})
-        send(pid, {:facts_loaded, true})
+    
+    case load_causenet_data_subset(session, 100) do
+      {:ok, fact_count} ->
+        send(pid, {:facts_loading_progress, 60, "Loading causal reasoning rules..."})
+        load_causal_rules(session)
+        
+        send(pid, {:facts_loading_progress, 90, "Finalizing causal knowledge base..."})
+        
+        # Verify everything is working
+        send(pid, {:facts_loading_progress, 100, "Loaded #{fact_count} causal relationships!"})
+        send(pid, {:facts_loaded, fact_count})
         {:reply, :ok, %{state | loaded: true}}
+        
       {:error, reason} ->
         send(pid, {:facts_loaded, false})
         {:reply, {:error, reason}, state}
@@ -254,14 +281,37 @@ defmodule PrologDemo.CausalSessionManager do
     MQI.stop_session(session)
   end
 
-  defp load_causenet_data(session) do
+  def load_dataset(size \\ :small) do
+    GenServer.call(__MODULE__, {:load_dataset, size})
+  end
+
+  defp load_causenet_data_subset(session, limit) do
+    IO.puts("📊 Loading CauseNet dataset subset (#{limit} relationships)...")
+    
+    relationships = PrologDemo.CauseNetDataLoader.load_manageable_subset(limit)
+    causenet_facts = PrologDemo.CauseNetDataLoader.to_prolog_facts(relationships)
+
+    case MQI.consult_string(session, causenet_facts) do
+      {:ok, _} ->
+        IO.puts("✅ Loaded #{length(relationships)} CauseNet relationships for causal reasoning")
+        {:ok, length(relationships)}
+      {:error, reason} ->
+        IO.puts("❌ Failed to load CauseNet data: #{reason}")
+        {:error, reason}
+    end
+  end
+
+  defp load_causenet_data_full(session) do
+    IO.puts("📊 Loading full CauseNet dataset (this may take a while)...")
+    
     # Load real CauseNet data
     causenet_facts = PrologDemo.CauseNetService.get_causenet_prolog_facts()
 
     case MQI.consult_string(session, causenet_facts) do
       {:ok, _} ->
-        IO.puts("✅ Loaded #{String.length(causenet_facts)} characters of CauseNet facts for causal reasoning")
-        :ok
+        relationships_count = String.split(causenet_facts, "\n") |> Enum.count()
+        IO.puts("✅ Loaded #{relationships_count} CauseNet relationships for causal reasoning")
+        {:ok, relationships_count}
       {:error, reason} ->
         IO.puts("❌ Failed to load CauseNet data: #{reason}")
         {:error, reason}

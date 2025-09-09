@@ -92,12 +92,39 @@ defmodule PrologDemoWeb.CauseNetLive do
                 This may take a few moments as we process thousands of real-world causal relationships.
               </p>
               <div class="text-center">
-                <button
-                  phx-click="load_facts"
-                  class="bg-yellow-600 text-white py-3 px-8 rounded-lg font-medium hover:bg-yellow-700 focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors duration-200"
-                >
-                  🚀 Load CauseNet Facts
-                </button>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <button
+                    phx-click="load_facts"
+                    phx-value-size="small"
+                    class="bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
+                  >
+                    🌱 Small<br/><span class="text-xs">(100 facts)</span>
+                  </button>
+                  <button
+                    phx-click="load_facts"
+                    phx-value-size="medium"
+                    class="bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+                  >
+                    🌳 Medium<br/><span class="text-xs">(500 facts)</span>
+                  </button>
+                  <button
+                    phx-click="load_facts"
+                    phx-value-size="large"
+                    class="bg-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-orange-700 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors duration-200"
+                  >
+                    🏔️ Large<br/><span class="text-xs">(2K facts)</span>
+                  </button>
+                  <button
+                    phx-click="load_facts"
+                    phx-value-size="full"
+                    class="bg-red-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200"
+                  >
+                    🌍 Full<br/><span class="text-xs">(All facts)</span>
+                  </button>
+                </div>
+                <p class="text-sm text-yellow-600">
+                  Choose dataset size based on your needs. Start with Small for quick testing.
+                </p>
               </div>
             </div>
           <% end %>
@@ -870,31 +897,31 @@ defmodule PrologDemoWeb.CauseNetLive do
                   <div class="border border-gray-200 rounded-lg p-4">
                     <h4 class="font-bold text-blue-800 mb-3">🔍 Database Queries</h4>
                     <pre class="text-xs bg-gray-100 p-2 rounded font-mono"><code>% One rule for employee-manager relationships
-manages(john, [alice, bob, charlie]).
-manages(alice, [david, eve]).
+                    manages(john, [alice, bob, charlie]).
+                    manages(alice, [david, eve]).
 
-% Same rule answers:
-% Who does John manage? (forward)
-% Who manages Alice? (backward)  
-% Does John manage Eve indirectly? (verification)</code></pre>
+                    % Same rule answers:
+                    % Who does John manage? (forward)
+                    % Who manages Alice? (backward)  
+                    % Does John manage Eve indirectly? (verification)</code></pre>
                   </div>
                   <div class="border border-gray-200 rounded-lg p-4">
                     <h4 class="font-bold text-purple-800 mb-3">🧮 Mathematical Relations</h4>
                     <pre class="text-xs bg-gray-100 p-2 rounded font-mono"><code>% One rule for arithmetic
-plus(X, Y, Z) :- Z is X + Y.
+                    plus(X, Y, Z) :- Z is X + Y.
 
-% Same rule can:
-% Calculate: plus(3, 4, Z) → Z = 7
-% Subtract: plus(3, Y, 7) → Y = 4  
-% Verify: plus(3, 4, 7) → true</code></pre>
+                    % Same rule can:
+                    % Calculate: plus(3, 4, Z) → Z = 7
+                    % Subtract: plus(3, Y, 7) → Y = 4  
+                    % Verify: plus(3, 4, 7) → true</code></pre>
                   </div>
                   <div class="border border-gray-200 rounded-lg p-4">
                     <h4 class="font-bold text-green-800 mb-3">🕸️ Graph Traversal</h4>
                     <pre class="text-xs bg-gray-100 p-2 rounded font-mono"><code>% One rule for connectivity
-connected(A, B) :- edge(A, B).
-connected(A, C) :- edge(A, B), connected(B, C).
+                    connected(A, B) :- edge(A, B).
+                    connected(A, C) :- edge(A, B), connected(B, C).
 
-% Finds paths in any direction automatically!</code></pre>
+                    % Finds paths in any direction automatically!</code></pre>
                   </div>
                   <div class="border border-gray-200 rounded-lg p-4">
                     <h4 class="font-bold text-orange-800 mb-3">📋 Constraint Satisfaction</h4>
@@ -1122,7 +1149,6 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
      |> assign(:adapter_list, Swiex.Prolog.list_adapters())
      |> assign(:comparison_query, "true")
      |> assign(:comparison_results, %{})
-     |> maybe_load_facts()
 
     # 🚀 AUTO-GENERATE Sudoku puzzle on page load for Sudoku tab
     final_socket = if demo_type == "sudoku" and facts_loaded do
@@ -1142,9 +1168,20 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
   end
 
   @impl true
+  def handle_event("load_facts", %{"size" => size}, socket) do
+    if not socket.assigns.facts_loaded do
+      dataset_size = String.to_atom(size)
+      send(self(), {:load_facts, dataset_size})
+      {:noreply, assign(socket, :facts_loading, true)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Fallback for old load_facts calls without size
   def handle_event("load_facts", _params, socket) do
     if not socket.assigns.facts_loaded do
-      send(self(), :load_facts)
+      send(self(), {:load_facts, :small})
       {:noreply, assign(socket, :facts_loading, true)}
     else
       {:noreply, socket}
@@ -1417,8 +1454,8 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
   end
 
   @impl true
-  def handle_info(:load_facts, socket) do
-    # Start loading facts with progress updates for the appropriate demo type
+  def handle_info({:load_facts, size}, socket) do
+    # Load facts with specified size for the appropriate demo type
     session_manager = case socket.assigns.demo_type do
       "causal" -> PrologDemo.CausalSessionManager
       "constraints" -> PrologDemo.ConstraintSessionManager
@@ -1426,10 +1463,31 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
       "bidirectional" -> PrologDemo.PlaygroundSessionManager
     end
 
+    # Capture the LiveView PID before starting the task
+    live_view_pid = self()
+    
     Task.start(fn ->
-      session_manager.load_facts_with_progress(self())
+      case session_manager do
+        PrologDemo.CausalSessionManager ->
+          # Use the new load_dataset function for causal sessions
+          case PrologDemo.CausalSessionManager.load_dataset(size) do
+            {:ok, fact_count} ->
+              send(live_view_pid, {:facts_loaded, fact_count})
+            {:error, reason} ->
+              send(live_view_pid, {:facts_loading_error, reason})
+          end
+        _ ->
+          # Use the old method for other session types
+          session_manager.load_facts_with_progress(live_view_pid)
+      end
     end)
 
+    {:noreply, socket}
+  end
+
+  # Fallback for old :load_facts message format
+  def handle_info(:load_facts, socket) do
+    send(self(), {:load_facts, :small})
     {:noreply, socket}
   end
 
@@ -1442,7 +1500,7 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
   end
 
   @impl true
-  def handle_info({:facts_loaded, success}, socket) do
+  def handle_info({:facts_loaded, success}, socket) when is_boolean(success) do
     {:noreply,
      socket
      |> assign(:facts_loading, false)
@@ -1451,6 +1509,27 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
      |> assign(:loading_message, if(success, do: "Facts loaded successfully!", else: "Failed to load facts"))
      |> put_flash(if(success, do: :info, else: :error),
                   if(success, do: "CauseNet facts loaded successfully!", else: "Failed to load CauseNet facts"))}
+  end
+
+  def handle_info({:facts_loaded, fact_count}, socket) when is_integer(fact_count) do
+    {:noreply,
+     socket
+     |> assign(:facts_loading, false)
+     |> assign(:facts_loaded, true)
+     |> assign(:fact_count, fact_count)
+     |> assign(:loading_progress, 100)
+     |> assign(:loading_message, "#{fact_count} facts loaded successfully!")
+     |> put_flash(:info, "#{fact_count} CauseNet facts loaded successfully!")}
+  end
+
+  def handle_info({:facts_loading_error, reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:facts_loading, false)
+     |> assign(:facts_loaded, false)
+     |> assign(:loading_progress, 0)
+     |> assign(:loading_message, "Failed to load facts: #{reason}")
+     |> put_flash(:error, "Failed to load CauseNet facts: #{reason}")}
   end
 
   # Helper functions
@@ -1529,14 +1608,6 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
     end
   end
 
-  defp maybe_load_facts(socket) do
-    if not socket.assigns.facts_loaded do
-      send(self(), :load_facts)
-      assign(socket, :facts_loading, true)
-    else
-      socket
-    end
-  end
 
   defp get_fact_count(demo_type) do
     case demo_type do

@@ -1,0 +1,185 @@
+applications:
+  # Main Swiex library with Phoenix demo
+  swiex:
+    # Source code location - root of repository
+    source:
+      root: "/"
+    type: "composable:25.05"
+    container_profile: HIGH_MEMORY
+    # Composable image with Elixir 1.18, SWI-Prolog, and Scryer-Prolog
+    stack:
+      - "elixir_1_18"
+      - "swi-prolog"
+      - "scryer-prolog"
+    
+    
+    # Build configuration
+    hooks:
+      build: |
+        set -e
+        
+        echo "Building Swiex with Phoenix demo..."
+        
+        # Install Hex and Rebar
+        mix local.hex --force
+        mix local.rebar --force
+        
+        # First, get dependencies for the main library
+        mix deps.get
+        mix deps.compile
+        
+        # Now build the Phoenix demo
+        cd examples/phoenix_demo
+        
+        # Get Phoenix dependencies
+        MIX_ENV=prod mix deps.get --only prod
+        MIX_ENV=prod mix deps.compile
+        
+        # Compile the Phoenix application
+        MIX_ENV=prod mix compile
+        
+        # Compile assets (esbuild/tailwind)
+        MIX_ENV=prod mix assets.deploy
+        
+        # Generate Phoenix static files digest
+        MIX_ENV=prod mix phx.digest
+        
+        # Clean up build artifacts to save space
+        MIX_ENV=prod mix phx.digest.clean
+        
+        # Create release (optional but recommended for production)
+        # MIX_ENV=prod mix release
+        
+        echo "Build complete!"
+        echo "SWI-Prolog version: $(swipl --version | head -n1)"
+        echo "Scryer-Prolog available: $(which scryer-prolog || echo 'not found')"
+      
+      deploy: |
+        set -e
+        
+        echo "Deploying Swiex Phoenix demo..."
+        
+        # Ensure we're in the Phoenix demo directory
+        cd examples/phoenix_demo
+        
+        # Run any database migrations if needed
+        # MIX_ENV=prod mix ecto.migrate
+        
+        echo "Deployment complete!"
+        echo "Testing SWI-Prolog MQI..."
+        swipl -g "use_module(library(mqi)), mqi_version(V, _), format('MQI Version: ~w~n', [V]), halt." || echo "MQI test failed"
+    
+    # Runtime configuration
+    variables:
+      env:
+        MIX_ENV: "prod"
+        PORT: "8888"
+        # Use the platform-provided hostname
+        PHX_HOST: "${PLATFORM_ROUTES_DEFAULT}"
+        PHX_SERVER: "true"
+        # Erlang VM settings for better performance
+        ERL_FLAGS: "+K true +A 10"
+        # Path settings to ensure Prolog is available
+        PATH: "/usr/local/bin:/usr/bin:/bin:${PATH}"
+        # Database URL if needed
+        # DATABASE_URL: "${DATABASE_URL}"
+    
+    # Web server configuration
+    web:
+      upstream:
+        socket_family: tcp
+        protocol: http
+      
+      commands:
+        start: |
+          set -e
+          
+          # Change to Phoenix demo directory
+          cd examples/phoenix_demo
+          
+          # Ensure SWI-Prolog is available
+          echo "SWI-Prolog check: $(which swipl)"
+          echo "SWI-Prolog version: $(swipl --version | head -n1)"
+          
+          # Start the Phoenix server in production mode
+          # Using PORT from environment (8888)
+          MIX_ENV=prod PORT=8888 elixir --cookie swiex_demo --name "swiex@${HOSTNAME}" -S mix phx.server
+      
+      locations:
+        "/":
+          passthru: true
+          expires: -1
+          headers:
+            X-Frame-Options: "SAMEORIGIN"
+            X-XSS-Protection: "1; mode=block"
+            X-Content-Type-Options: "nosniff"
+            Referrer-Policy: "strict-origin-when-cross-origin"
+        
+        "/assets":
+          root: "examples/phoenix_demo/priv/static/assets"
+          expires: 1y
+          headers:
+            Cache-Control: "public, max-age=31536000, immutable"
+        
+        "/images":
+          root: "examples/phoenix_demo/priv/static/images"
+          expires: 30d
+          headers:
+            Cache-Control: "public, max-age=2592000"
+        
+        "/favicon.ico":
+          root: "examples/phoenix_demo/priv/static"
+          expires: 30d
+        
+        "/robots.txt":
+          root: "examples/phoenix_demo/priv/static"
+          expires: 1d
+    
+    # Disk for persistent storage
+    mounts:
+      # Store uploaded files
+      "examples/phoenix_demo/priv/static/uploads":
+        source: storage
+        source_path: uploads
+      
+      # Store Prolog knowledge bases and session data
+      "examples/phoenix_demo/priv/prolog_data":
+        source: storage
+        source_path: prolog_data
+      
+      # Store application logs
+      "examples/phoenix_demo/logs":
+        source: storage
+        source_path: logs
+      
+      # Mount example data directory (contains CauseNet dataset)
+      "examples/phoenix_demo/example_data":
+        source: storage
+        source_path: example_data
+    
+    # Relationships (uncomment if using database)
+    # relationships:
+    #   database: "postgresql:postgresql"
+
+# Routes configuration
+routes:
+  "https://{default}/":
+    type: upstream
+    upstream: "swiex:http"
+    cache:
+      enabled: false
+      # Cache static assets at edge
+      cookies: ["_swiex_demo_key"]
+      default_ttl: 0
+      headers:
+        - "Accept"
+        - "Accept-Language"
+
+# Services (uncomment if needed)
+# services:
+#   postgresql:
+#     type: postgresql:16
+#     disk: 1024
+#     configuration:
+#       max_connections: 100
+#       shared_buffers: 256MB
