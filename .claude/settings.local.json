@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mix test)",
+      "Bash(mix test:*)",
+      "Bash(mix phx.server:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:www.swi-prolog.org)",
+      "Bash(pkill:*)",
+      "WebFetch(domain:michal.muskala.eu)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:oliverflecke.me)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(timeout 30 mix test test/swiex_mqi_comprehensive_test.exs)",
+      "Bash(timeout 30 mix test test/ --exclude slow)",
+      "Bash(timeout 30 mix test test/swiex_mqi_comprehensive_test.exs --max-failures 3)",
+      "Bash(timeout 30 mix test test/swiex_mqi_comprehensive_test.exs --exclude slow)",
+      "Bash(iex:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:elixirforum.com)",
+      "Bash(mix deps.get:*)",
+      "Bash(mix compile)",
+      "Bash(elixir test:*)",
+      "Bash(find:*)",
+      "Bash(elixir:*)",
+      "Bash(erl:*)",
+      "WebFetch(domain:www.scryer.pl)",
+      "Bash(timeout:*)",
+      "Bash(git rm:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

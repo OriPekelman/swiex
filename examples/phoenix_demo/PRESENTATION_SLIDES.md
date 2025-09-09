@@ -216,8 +216,6 @@ In fact, the system knew only about pronouns, articles and prepositions (the voc
 
   Alain Colmerauer
 
-(see http://alain.colmerauer.free.fr/alcol/ArchivesPublications/PrologHistory/19november92.pdf and http://alain.colmerauer.free.fr/alcol/ArchivesPublications/PrologHistoire/24juillet92plus/24juillet92plusvar.pdf and http://alain.colmerauer.free.fr/alcol/ArchivesPublications/HommeMachineFr/HoMa.pdf)
-
 --- 
 # An early Prolog program (from the paper).
 
@@ -347,25 +345,16 @@ naive_sort(List, Sorted) :-
 naive_sort([3,1,2], Sorted).
 ```
 
+--- 
 ## How did I get into this mess?
 **Blame Edmund**
 
 * So the thing was we were working on a project.
 * And I was like: hey this sounds distributed I'll do Elixir.
 * And Edmund was like: I am too bored and have too little patience so I'll express it in Prolog.
-* Afterwards, I have been writing a unchronic science-fiction novel, with quite a complex backstory. And a couple hundred pages in I really wanted to be able to do some sanity checks on the coherence of my world.
+* Afterwards, I have been writing a uchronic science-fiction novel, with quite a complex backstory. And a couple-hundred-pages-in I really wanted to be able to do some sanity checks on the coherence of my world.
 * And I already knew some prolog. So WTF. Why not?
----
-
-## 🎯 **What We'll Cover Today**
-
-1. **🤔 What is Logic Programming?** - The paradigm shift
-2. **🔄 Prolog vs Elixir** - Compare and contrast
-3. **💡 The Sweet Spot** - Where Prolog shines
-4. **🚀 Swiex Integration** - Bringing Prolog to Elixir
-5. **🧠 Live Demo** - CauseNet + Prolog in action
-6. **🎯 Real-World Applications** - Why this matters
-
+* The other thing is that I actually like the pattern of using Elixir as the umbrella for running stuff I wouldn't otherwise trust in production.
 ---
 
 ## 🎯 **The Programming Paradigm Spectrum**
@@ -386,8 +375,6 @@ Imperative Programming    Functional Programming    Logic Programming
 **Logic programming sits at the extreme "what" end of declarative programming**
 
 ---
-
-## 🎯 **What Makes Logic Programming Different?**
 
 ### **From Functions to Relations**
 
@@ -432,8 +419,7 @@ true.
 **The same 1-line rule answers 3 different types of questions!**
 
 ---
-
-## 🎯 **Core Prolog Concepts for Elixir Developers**
+# Facts, Rules, Unification, Backtracking.
 
 ### **1. Facts and Rules (Not Functions)**
 ```prolog
@@ -484,6 +470,7 @@ X = 1 ; X = 2 ; X = 3 ; false.
 5. **Graph Traversal** - Finding paths, cycles, relationships
 
 ---
+# Demo time
 
 ## 🎯 ****N-Queens Problem in 15 Lines**
 
@@ -508,21 +495,10 @@ safe_queen(Q, [Q1|Qs], D) :-
     safe_queen(Q, Qs, D1).
 ```
 
----
-
-## 🎯 **Anyone using Prolog**
-
-- **Airlines:** SICStus Prolog handles crew scheduling for 1/3 of global tickets
-- **NASA:** Voice-controlled systems on International Space Station
-- **IBM Watson:** Question-answering system uses Prolog for parsing
-- **TerminusDB:** Modern graph database written entirely in Prolog
-- **Medical Systems:** Expert systems for diagnosis and treatment planning
-
----
 
 ## 🎯 **Swiex**
 
-Why did I not use ex_prolog ? 
+Why did I not use ex_prolog or erlog? 
 
 1. Because I was too lazy/stupid to imagine someone else would have already done this.
 2. Learning by doing is nice.
@@ -532,21 +508,7 @@ Why did I not use ex_prolog ?
 - **Variable Sharing:** Pass data between languages
 - **Hot Code Loading:** Update Prolog rules without restarting
 - **Session management:** Have multiple long running processes each with its own facts context
-
----
-
-## 🎯 **Architecture**
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Phoenix App   │    │   Swiex MQI     │    │  SWI-Prolog     │
-│                 │◄──►│   Interface     │◄──►│   Engine        │
-│ • Web UI       │    │                 │    │ • Facts         │
-│ • API Endpoints│    │ • Session Mgmt  │    │ • Rules         │
-│ • Business     │    │ • Query Exec    │    │ • Inference     │
-│   Logic        │    │ • Result Proc   │    │ • Backtracking  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+- **Multiple Runtimes:** Swipl, Scryer, Erlog
 
 **Elixir handles system coordination, Prolog handles reasoning**
 
@@ -595,59 +557,6 @@ end
 
 ---
 
-## 🎯 **Slide 15: Demo: Causal Reasoning**
-
-### **🔍 Finding Causal Pathways**
-
-**Query:** "How does smoking lead to death?"
-
-In 4 lines of code.
-
----
-
-## 🎯 ** Demo: Constraint Solving**
-
-### **🧩 N-Queens Puzzle**
-
-**Problem:** Place 8 queens on 8x8 chessboard so no queen attacks another
-
-**Prolog solution:**
-```prolog
-?- n_queens(8, Queens).
-Queens = [1, 5, 8, 6, 3, 7, 2, 4] ;
-Queens = [1, 6, 8, 3, 7, 4, 2, 5] ;
-... (92 total solutions)
-```
----
-
-
-## 🎯 **Slide 21: Getting Started with Swiex**
-
-### **🚀 Your Next Steps**
-
-1. **Install SWI-Prolog:**
-   ```bash
-   # macOS
-   brew install swi-prolog
-   
-   # Ubuntu
-   sudo apt-get install swi-prolog
-   ```
-
-2. **Add to your Mix project:**
-   ```elixir
-   def deps do
-     [{:swiex, github: "OriPekelman/swiex"}]
-   end
-   ```
-
-3. **Start exploring:**
-   - SWISH online Prolog environment
-   - "Learn Prolog Now!" tutorial
-   - 99 Prolog Problems for practice
-
----
-
 ## 🎯 **Common Concerns Addressed**
 
 ### **🤔 "But I have questions..."**
@@ -672,91 +581,24 @@ A: Prolog rules are often more maintainable than complex imperative code. But I 
 
 ---
 
-## 🎯 **Resources & Next Steps**
-
-### **📚 Continue Your Journey**
+## 🎯 **Resources **
 
 **Immediate Exploration:**
 - **SWISH:** https://swish.swi-prolog.org/ (Online Prolog)
 - **Learn Prolog Now!:** http://www.learnprolognow.org/
 - **99 Problems:** https://www.ic.unicamp.br/~meidanis/courses/mc336/2009s2/prolog/problemas/
-
-**Integration:**
 - **Swiex Documentation:** https://github.com/OriPekelman/swiex
 - **SWI-Prolog MQI:** https://www.swi-prolog.org/pldoc/man?section=mqi
+- **Scryer Prolog:** https://www.scryer.pl/
+- **exprolog:** https://github.com/k1complete/exprolog
+- **Erlog by Robert Virding:** https://github.com/rvirding/erlog/
+- **History of Prolog:** http://alain.colmerauer.free.fr/alcol/ArchivesPublications/PrologHistory/19november92.pdf and in French: http://alain.colmerauer.free.fr/alcol/ArchivesPublications/PrologHistoire/24juillet92plus/24juillet92plusvar.pdf
+- **The Fascinating Original Paper:** http://alain.colmerauer.free.fr/alcol/ArchivesPublications/HommeMachineFr/HoMa.pdf 
+- **About the implementations:** an Incredible introduction to the Warren Abstract Machine. - https://webperso.info.ucl.ac.be/~pvr/PRL-TR-36.pdf  and how all of this is implemented.
 - **Example Projects:** Check the Swiex examples directory
 
-**Community:**
-- **SWI-Prolog Discourse:** https://swi-prolog.discourse.group/
-
 ---
 
-## 🎯 **Slide 26: Thank You!**
+## 🎯 * Thank You!**
 
-### **🧠 Prolog + Elixir = Powerful Hybrid Solutions**
 
-**Contact & Resources:**
-- **GitHub:** https://github.com/OriPekelman/swiex
-
----
-
-## 🎯 **Appendix: Live Demo Script**
-
-### **🎬 Your Demo Flow for Maximum Impact**
-
-1. **Start with the question:** "How would you find all ways that smoking can lead to death in Elixir?"
-2. **Show the complexity:** Graph traversal, backtracking, cycle detection (60+ lines)
-3. **Reveal Prolog:** "Here's the Prolog version..." (4 lines)
-4. **Load CauseNet data:** Show real-world causal relationships
-5. **Build complexity:** Start with simple queries, build to causal chains
-6. **Audience participation:** Let them suggest concepts to explore
-7. **Finish with Swiex:** Show it working in Phoenix
-
-**Key "Wow" moments:**
-- Bidirectional queries working both ways
-- Automatic finding of all causal pathways
-- Real data making it immediately relevant
-- Dramatic code reduction
-- Live audience-driven exploration
-
----
-
-## 🎯 **Appendix: Technical Setup**
-
-### **🔧 Getting the Demo Running**
-
-1. **Start Phoenix demo (Swiex handles Prolog automatically):**
-   ```bash
-   cd examples/phoenix_demo
-   mix deps.get
-   mix phx.server
-   ```
-
-2. **Navigate to:** 
-   - **Traditional version:** http://localhost:4000/causenet
-   - **LiveView version:** http://localhost:4000/causenet-live
-
-3. **Demo features:**
-   - Causal reasoning with CauseNet data
-   - Medical diagnosis system
-   - Constraint solving (N-Queens, Sudoku)
-   - Interactive Prolog playground
-   - Real-time updates with Phoenix LiveView
-
-**The demo showcases real-world applications, not just toy examples!**
-
-### **🚀 Why LiveView Makes This Better**
-
-- **Real-time interactivity** - No page refreshes needed
-- **Elixir-native state management** - All logic stays in Elixir
-- **Better user experience** - Instant feedback and updates
-- **Cleaner architecture** - No JavaScript/HTML mixing
-- **Easier maintenance** - Single language for frontend and backend
-
---- 
-
-Erlog - Prolog for an Erlang Application
-Erlog is a Prolog interpreter implemented in Erlang and integrated with the Erlang runtime system. It is a subset of the Prolog standard. An Erlog shell (REPL) is also included.
-
-You should use this if you want to include some Prolog or logic programming functionality in a larger Erlang system (Including Elixir, LFE, Joxa etc). If you want a stand alone Prolog you are probably better off using a package like SWI Prolog.
-  Robert Virding
