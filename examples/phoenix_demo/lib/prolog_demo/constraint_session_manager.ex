@@ -79,9 +79,9 @@ defmodule PrologDemo.ConstraintSessionManager do
             IO.puts("✅ CLP(FD) found #{length(solutions)} solutions for #{n}-Queens")
             {:reply, {:ok, %{
               n: n,
-              solutions: Enum.take(solutions, 100),  # Display first 10
+              solutions: solutions,  # Display all solutions
               count: length(solutions),
-              display_limit: 100,
+              display_limit: length(solutions),
               solver_type: "clp_fd",
               note: "🚀 Solved using Constraint Logic Programming!"
             }}, %{state | monitoring_state: new_monitoring_state}}
@@ -330,7 +330,7 @@ defmodule PrologDemo.ConstraintSessionManager do
       "safe_queens([Q|Qs]) :- safe_queens(Qs), no_attack(Q, Qs, 1).",
       "no_attack(_, [], _).",
       "no_attack(Q, [Q1|Qs], Dist) :- Q #\\= Q1, abs(Q - Q1) #\\= Dist, Dist1 #= Dist + 1, no_attack(Q, Qs, Dist1).",
-      "find_n_queens_solutions(NumQueens, Solutions) :- findall(Positions, n_queens_solve(NumQueens, Positions), AllSolutions), (length(AllSolutions, Len), Len > 10 -> length(Solutions, 10), append(Solutions, _, AllSolutions); Solutions = AllSolutions).",
+      "find_n_queens_solutions(NumQueens, Solutions) :- findall(Positions, n_queens_solve(NumQueens, Positions), Solutions).",
       "n_queens(NumQueens, Solution) :- n_queens_solve(NumQueens, Solution).",
       "n_queens_solution(NumQueens, Solution) :- n_queens_solve(NumQueens, Solution)."
     ]
