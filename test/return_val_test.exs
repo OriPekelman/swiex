@@ -46,7 +46,7 @@ defmodule Swiex.ReturnValTest do
   test "return_pi/1 returns 3.14159" do
     prolog_code = "return_pi(X) :- X = 3.14159."
     assert {:ok, []} = Swiex.MQI.consult_string(prolog_code, [])
-    assert {:ok, [%{"X" => pi}]} = Swiex.MQI.query("return_pi(X)")
+    assert {:ok, [%{"X" => _pi}]} = Swiex.MQI.query("return_pi(X)")
   end
 
   test "return_apostrophe_1/1 returns string with apostrophe" do

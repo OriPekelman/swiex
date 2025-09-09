@@ -70,19 +70,15 @@ defmodule Swiex.Prolog do
   end
 
   @doc """
-  Execute a query within a session.
+  Execute a query within a session or without session management.
   """
   @spec query({session, adapter}, query) :: {:ok, [result]} | {:error, error}
-  def query({session, adapter}, query_string) do
-    adapter.query(session, query_string)
-  end
-
-  @doc """
-  Execute a query without session management.
-  """
   @spec query(query, keyword()) :: {:ok, [result]} | {:error, error}
   def query(query_string, opts \\ [])
-  def query(query_string, opts) do
+  def query({session, adapter}, query_string) when is_binary(query_string) do
+    adapter.query(session, query_string)
+  end
+  def query(query_string, opts) when is_binary(query_string) do
     adapter = Keyword.get(opts, :adapter, default_adapter())
     adapter.query(query_string)
   end

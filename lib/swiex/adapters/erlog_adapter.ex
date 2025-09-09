@@ -20,16 +20,23 @@ defmodule Swiex.Adapters.ErlogAdapter do
 
   @impl true
   def start_session() do
-    case :erlog.new() do
-      {:ok, erlog_state} ->
-        session = Session.new(erlog_state)
-        {:ok, session}
-      {:error, reason} ->
-        {:error, reason}
+    case Code.ensure_loaded(:erlog) do
+      {:module, :erlog} ->
+        try do
+          case :erlog.new() do
+            {:ok, erlog_state} ->
+              session = Session.new(erlog_state)
+              {:ok, session}
+            {:error, reason} ->
+              {:error, reason}
+          end
+        rescue
+          error ->
+            {:error, {:erlog_initialization_failed, error}}
+        end
+      {:error, :nofile} ->
+        {:error, {:erlog_not_found, "Erlog library is not available"}}
     end
-  rescue
-    error ->
-      {:error, {:erlog_initialization_failed, error}}
   end
 
   @impl true
@@ -74,13 +81,18 @@ defmodule Swiex.Adapters.ErlogAdapter do
           updated_session = %{session | facts: [fact_string | facts]}
           
           # Assert the fact into Erlog  
-          case :erlog.prove({:assert, erlog_fact}, erlog_state) do
-            {{:succeed, _bindings}, _new_state} ->
-              {:ok, updated_session}
-            {{:fail, _}, _} ->
-              {:error, :assertion_failed}
-            error ->
-              {:error, {:erlog_assert_error, error}}
+          case Code.ensure_loaded(:erlog) do
+            {:module, :erlog} ->
+              case :erlog.prove({:assert, erlog_fact}, erlog_state) do
+                {{:succeed, _bindings}, _new_state} ->
+                  {:ok, updated_session}
+                {{:fail, _}, _} ->
+                  {:error, :assertion_failed}
+                error ->
+                  {:error, {:erlog_assert_error, error}}
+              end
+            {:error, :nofile} ->
+              {:error, {:erlog_not_found, "Erlog library is not available"}}
           end
         {:error, :unsupported} ->
           {:error, {:unsupported_fact, "Erlog does not support this fact: #{fact_string}"}}
@@ -163,20 +175,25 @@ defmodule Swiex.Adapters.ErlogAdapter do
   end
 
   defp execute_erlog_query(erlog_state, erlog_term) do
-    case :erlog.prove(erlog_term, erlog_state) do
-      {{:succeed, bindings}, _new_state} ->
-        # Convert Erlog bindings to our standard format
-        results = convert_bindings_to_results(bindings)
-        {:ok, results}
-      
-      {:fail, _new_state} ->
-        {:ok, []} # No solutions found
-        
-      {{:fail, _}, _} ->
-        {:ok, []} # No solutions found - alternative format
-        
-      error ->
-        {:error, {:erlog_execution_error, error}}
+    case Code.ensure_loaded(:erlog) do
+      {:module, :erlog} ->
+        case :erlog.prove(erlog_term, erlog_state) do
+          {{:succeed, bindings}, _new_state} ->
+            # Convert Erlog bindings to our standard format
+            results = convert_bindings_to_results(bindings)
+            {:ok, results}
+          
+          {:fail, _new_state} ->
+            {:ok, []} # No solutions found
+            
+          {{:fail, _}, _} ->
+            {:ok, []} # No solutions found - alternative format
+            
+          error ->
+            {:error, {:erlog_execution_error, error}}
+        end
+      {:error, :nofile} ->
+        {:error, {:erlog_not_found, "Erlog library is not available"}}
     end
   end
 

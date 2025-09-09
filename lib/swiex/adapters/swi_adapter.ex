@@ -33,7 +33,10 @@ defmodule Swiex.Adapters.SwiAdapter do
 
   @impl true
   def assertz(session, fact_or_rule) do
-    MQI.assertz(session, fact_or_rule)
+    case MQI.assertz(session, fact_or_rule) do
+      {:ok, _result} -> {:ok, session}
+      error -> error
+    end
   end
 
   @impl true

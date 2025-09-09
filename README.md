@@ -19,7 +19,7 @@ Swiex is an Elixir library that provides a client for SWI-Prolog's Machine Query
 
 ## Status: Pre-Alpha forever
 
-This is a toy implementation built for weird reasons. I expect the performance to be horrendous; security to be inexistant; and the potential to summon evil spirits from another century to be very high.
+This is a vibe-coded toy implementation built for weird reasons. I expect the performance to be horrendous; security to be inexistant; and the potential to summon evil spirits from another century to be very high.
 
 
 ## Installation

@@ -34,7 +34,8 @@ defmodule Swiex.MixProject do
       {:jason, "~> 1.4"},
       {:socket, "~> 0.3"},
       {:ex_doc, "~> 0.29", only: :dev, runtime: false},
-      {:file_system, "~> 1.0"}
+      {:file_system, "~> 1.0"},
+      {:erlog, github: "rvirding/erlog", branch: "develop", optional: true}
     ]
   end
 

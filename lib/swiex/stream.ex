@@ -114,9 +114,6 @@ defmodule Swiex.Stream do
       {:ok, []} ->
         # No more results available
         {:halt, %{state | remaining: [], has_more: false}}
-      {:error, _reason} ->
-        # Error occurred, stop streaming
-        {:halt, %{state | remaining: [], has_more: false}}
     end
   end
 
