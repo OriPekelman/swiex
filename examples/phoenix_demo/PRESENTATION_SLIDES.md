@@ -4,11 +4,6 @@ marp: true
 # 🧠 Prolog and Logic Programming for Elixir Developers
 ## Paris Elixir User Group Presentation
 
----
-
-## Prolog and Logic Programming for Elixir Developers
-**Bridging Functional and Logical Programming with Swiex**
-
 - **Speaker:** Ori Pekelman
 - **Date:** 11/09/2025
 - **GitHub:** https://github.com/OriPekelman/swiex
@@ -20,27 +15,27 @@ Let's start with the shortest valid Prolog program, if we were in 1972.
 AMEN
 ```
 
-Anyone designing a new programming language must from henceforward by my royal decree use AMEN as the program terminator. Other than * and () it was the only actual reserved word.
+Anyone designing a new programming language **MUST** from henceforward by my royal decree use AMEN as the program terminator. Other than * and () it was the only actual reserved word.
 
 And this talk could happily ended with this discovery - but you came and everything.
 
-(See: 
-http://alain.colmerauer.free.fr/alcol/ArchivesPublications/HommeMachineFr/HoMa.pdf)
 ---
 
-"Erlang is essentially Prolog with processes... We took Prolog, removed backtracking, added processes, and spent 25 years figuring out the consequences."
-  Joe Amstrong
+> "Erlang is essentially Prolog with processes... We took Prolog, removed backtracking, added processes, and spent 25 years figuring out the consequences."
+> **Joe Amstrong**
 
 ---
 
-"The standard way of describing Prolog in itself is to use a simple
+>The standard way of describing Prolog in itself is to use a simple
 meta-interpreter:
 
+```prolog
   solve((A,B)) :- solve(A), solve(B).
   solve(A) :- builtin(A), call(A).
   solve(A,B) :- rule(A, B), solve(B).
+```
 
-The problem with this meta-interpreter is that the set of remaining goals that is not yet solved is not available for program manipulation."
+> The problem with this meta-interpreter is that the set of remaining goals that is not yet solved is not available for program manipulation."
 
 ---
 
