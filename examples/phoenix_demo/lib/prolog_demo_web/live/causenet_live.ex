@@ -52,6 +52,12 @@ defmodule PrologDemoWeb.CauseNetLive do
               >
                 🎯 Prolog Playground
               </.link>
+              <.link
+                navigate={~p"/causenet/adapters"}
+                class={tab_class(@active_tab, "adapter-comparison")}
+              >
+                ⚖️ Adapter Comparison
+              </.link>
             </nav>
           </div>
         </div>
@@ -507,6 +513,178 @@ defmodule PrologDemoWeb.CauseNetLive do
             </div>
           </div>
 
+          <!-- Adapter Comparison Tab -->
+          <div class={tab_content_class(@active_tab, "adapter-comparison")}>
+            <div class="space-y-8">
+              <!-- Header -->
+              <div class="bg-white rounded-xl shadow-lg p-8">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">⚖️ Prolog Adapter Comparison</h2>
+                <p class="text-lg text-gray-700 mb-4">
+                  <strong>Multiple Prolog Engines:</strong> Compare SWI-Prolog, Erlog, and Scryer Prolog performance and capabilities side by side!
+                </p>
+                <p class="text-gray-600">
+                  This demo shows how Swiex can work with different Prolog implementations through a unified adapter interface.
+                  Run the same queries against multiple engines to see differences in performance, syntax support, and results.
+                </p>
+              </div>
+
+              <!-- Adapter Status Cards -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <%= for adapter_info <- @adapter_list do %>
+                  <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex items-center justify-between mb-4">
+                      <div class="flex items-center space-x-3">
+                        <div class={adapter_status_icon_class(adapter_info.health)}>
+                          <%= if adapter_info.health == :ok do %>
+                            ✅
+                          <% else %>
+                            ❌
+                          <% end %>
+                        </div>
+                        <div>
+                          <h3 class="text-xl font-bold text-gray-900"><%= adapter_info.info.name %></h3>
+                          <p class="text-sm text-gray-500 capitalize"><%= adapter_info.info.type %> Implementation</p>
+                        </div>
+                      </div>
+                      <span class={adapter_health_badge_class(adapter_info.health)}>
+                        <%= if adapter_info.health == :ok, do: "Available", else: "Unavailable" %>
+                      </span>
+                    </div>
+                    
+                    <div class="space-y-3">
+                      <div>
+                        <p class="text-sm font-medium text-gray-700 mb-1">Features:</p>
+                        <div class="flex flex-wrap gap-1">
+                          <%= for feature <- adapter_info.info.features do %>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              <%= format_feature_name(feature) %>
+                            </span>
+                          <% end %>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p class="text-sm font-medium text-gray-700">Version: <span class="font-normal"><%= adapter_info.info.version %></span></p>
+                      </div>
+                      
+                      <%= if adapter_info.health == :ok do %>
+                        <div class="pt-2">
+                          <button 
+                            phx-click="test_adapter"
+                            phx-value-adapter={adapter_info.adapter}
+                            class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+                          >
+                            🧪 Test This Adapter
+                          </button>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+
+              <!-- Query Comparison Section -->
+              <div class="bg-white rounded-xl shadow-lg p-8">
+                <h3 class="text-xl font-bold text-gray-900 mb-6">🔬 Side-by-Side Query Comparison</h3>
+                
+                <div class="mb-6">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Enter a Prolog query to test across all available adapters:
+                  </label>
+                  <div class="flex space-x-3">
+                    <input
+                      type="text"
+                      value={@comparison_query}
+                      phx-keyup="update_comparison_query"
+                      placeholder="true"
+                      class="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <button
+                      phx-click="run_comparison"
+                      class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200"
+                    >
+                      🚀 Run Comparison
+                    </button>
+                  </div>
+                </div>
+
+                <%= if @comparison_results && map_size(@comparison_results) > 0 do %>
+                  <div class="space-y-6">
+                    <h4 class="text-lg font-semibold text-gray-900">Results for: <code class="bg-gray-100 px-2 py-1 rounded text-sm"><%= @comparison_query %></code></h4>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <%= for {adapter_name, result} <- @comparison_results do %>
+                        <div class="border border-gray-200 rounded-lg p-4">
+                          <div class="flex items-center justify-between mb-3">
+                            <h5 class="font-medium text-gray-900"><%= get_adapter_name(adapter_name) %></h5>
+                            <span class={result_status_badge_class(result)}>
+                              <%= get_result_status_text(result) %>
+                            </span>
+                          </div>
+                          
+                          <div class="bg-gray-50 rounded p-3">
+                            <%= case result do %>
+                              <% {:ok, results} -> %>
+                                <div class="space-y-2">
+                                  <p class="text-xs text-gray-600 font-medium">✅ Success - <%= length(results) %> result(s):</p>
+                                  <%= if results == [] do %>
+                                    <p class="text-sm text-gray-600 italic">No results (query failed/false)</p>
+                                  <% else %>
+                                    <pre class="text-xs text-gray-800 whitespace-pre-wrap"><%= inspect(results, pretty: true, width: 40) %></pre>
+                                  <% end %>
+                                </div>
+                              <% {:error, reason} -> %>
+                                <div class="space-y-2">
+                                  <p class="text-xs text-red-600 font-medium">❌ Error:</p>
+                                  <pre class="text-xs text-red-700 whitespace-pre-wrap"><%= inspect(reason, pretty: true, width: 40) %></pre>
+                                </div>
+                            <% end %>
+                          </div>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+
+              <!-- Example Queries -->
+              <div class="bg-white rounded-xl shadow-lg p-8">
+                <h3 class="text-xl font-bold text-gray-900 mb-6">💡 Example Queries to Try</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 class="font-semibold text-gray-900 mb-3">Basic Logic</h4>
+                    <div class="space-y-2">
+                      <%= for query <- ["true", "fail", "1 + 1 =:= 2"] do %>
+                        <button
+                          phx-click="set_comparison_query"
+                          phx-value-query={query}
+                          class="block w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded text-sm font-mono"
+                        >
+                          <%= query %>
+                        </button>
+                      <% end %>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 class="font-semibold text-gray-900 mb-3">Simple Facts</h4>
+                    <div class="space-y-2">
+                      <%= for query <- ["atom(hello)", "number(42)", "is_list([1,2,3])"] do %>
+                        <button
+                          phx-click="set_comparison_query"
+                          phx-value-query={query}
+                          class="block w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded text-sm font-mono"
+                        >
+                          <%= query %>
+                        </button>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Bi-directional Demo Tab -->
           <div class={tab_content_class(@active_tab, "bidirectional-demo")}>
             <div class="space-y-8">
@@ -900,6 +1078,7 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
       :sudoku -> "sudoku"
       :playground -> "playground"
       :bidirectional -> "bidirectional"
+      :adapters -> "adapters"
       _ -> "causal" # default
     end
 
@@ -910,6 +1089,7 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
       "sudoku" -> PrologDemo.ConstraintSessionManager.facts_loaded?()  # Sudoku uses the same constraint solver
       "playground" -> PrologDemo.PlaygroundSessionManager.facts_loaded?()
       "bidirectional" -> PrologDemo.PlaygroundSessionManager.facts_loaded?()  # Bidirectional demo uses playground session manager
+      "adapters" -> true  # Adapter comparison doesn't need CauseNet facts loaded
     end
 
     socket = socket
@@ -943,6 +1123,9 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
      |> assign(:bidirectional_results2, nil)
      |> assign(:bidirectional_results3, nil)
      |> assign(:bidirectional_loading, false)
+     |> assign(:adapter_list, Swiex.Prolog.list_adapters())
+     |> assign(:comparison_query, "true")
+     |> assign(:comparison_results, %{})
      |> maybe_load_facts()
 
     # 🚀 AUTO-GENERATE Sudoku puzzle on page load for Sudoku tab
@@ -1297,6 +1480,47 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
     """
   end
 
+  # Adapter comparison event handlers
+
+  @impl true
+  def handle_event("update_comparison_query", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :comparison_query, value)}
+  end
+
+  @impl true
+  def handle_event("set_comparison_query", %{"query" => query}, socket) do
+    {:noreply, assign(socket, :comparison_query, query)}
+  end
+
+  @impl true
+  def handle_event("run_comparison", _params, socket) do
+    query = socket.assigns.comparison_query
+    
+    if String.trim(query) != "" do
+      # Run the query across all adapters
+      results = Swiex.Prolog.query_all(query)
+      {:noreply, assign(socket, :comparison_results, results)}
+    else
+      {:noreply, put_flash(socket, :error, "Please enter a query")}
+    end
+  end
+
+  @impl true
+  def handle_event("test_adapter", %{"adapter" => adapter_module}, socket) do
+    try do
+      adapter = String.to_existing_atom(adapter_module)
+      case Swiex.Prolog.query("true", adapter: adapter) do
+        {:ok, _results} ->
+          {:noreply, put_flash(socket, :info, "#{adapter_module} is working correctly!")}
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "#{adapter_module} test failed: #{inspect(reason)}")}
+      end
+    rescue
+      _error ->
+        {:noreply, put_flash(socket, :error, "Invalid adapter: #{adapter_module}")}
+    end
+  end
+
   defp get_tab_for_demo(demo_type) do
     case demo_type do
       "causal" -> "causal-reasoning"
@@ -1304,6 +1528,7 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
       "sudoku" -> "sudoku-solver"
       "playground" -> "prolog-playground"
       "bidirectional" -> "bidirectional-demo"
+      "adapters" -> "adapter-comparison"
       _ -> "causal-reasoning"
     end
   end
@@ -1331,5 +1556,47 @@ distinct_square([N11,N12,N13|T1], [N21,N22,N23|T2], [N31,N32,N33|T3]) :-
         10000
     end
   end
+
+  # Helper functions for adapter comparison
+
+  def adapter_status_icon_class(:ok), do: "text-2xl"
+  def adapter_status_icon_class(_), do: "text-2xl opacity-50"
+
+  def adapter_health_badge_class(:ok), do: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+  def adapter_health_badge_class(_), do: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
+
+  def format_feature_name(feature) do
+    feature
+    |> Atom.to_string()
+    |> String.replace("_", " ")
+    |> String.split(" ")
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join(" ")
+  end
+
+  def get_adapter_name(adapter_module) do
+    case adapter_module do
+      Swiex.Adapters.SwiAdapter -> "SWI-Prolog"
+      Swiex.Adapters.ErlogAdapter -> "Erlog"
+      Swiex.Adapters.ScryerAdapter -> "Scryer Prolog"
+      _ -> 
+        adapter_module
+        |> Module.split()
+        |> List.last()
+        |> String.replace("Adapter", "")
+    end
+  end
+
+  def result_status_badge_class({:ok, _}), do: "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"
+  def result_status_badge_class({:error, _}), do: "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
+
+  def get_result_status_text({:ok, results}) when is_list(results) do
+    if length(results) > 0 do
+      "✅ Success (#{length(results)})"
+    else
+      "✅ Success (0)"
+    end
+  end
+  def get_result_status_text({:error, _reason}), do: "❌ Error"
 
 end

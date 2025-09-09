@@ -54,7 +54,9 @@ defmodule PrologDemo.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
       # Add Swiex as a local dependency for development
-      {:swiex, path: "../.."}
+      {:swiex, path: "../.."},
+      # Add Erlog for alternate Prolog implementation
+      {:erlog, github: "rvirding/erlog", branch: "develop"}
     ]
   end
 

@@ -15,6 +15,91 @@ marp: true
 
 ---
 
+The programming language, Prolog, was born of a project aimed not at producing a programming language but at processing natural languages; in this case, French. The project gave rise to a preliminary version of Prolog at the end of 1971 and a more definitive version at the end of 1972.
+  
+  Alain Colmerauer and Philippe Roussel
+--- 
+
+"Erlang is essentially Prolog with processes... We took Prolog, removed backtracking, added processes, and spent 25 years figuring out the consequences."
+  Joe Amstrong
+
+---
+
+During the fall of 1972, the first Prolog system was implemented by Philippe (Roussel) in Niklaus Wirt’s language Algol-W; 
+
+And it could do this:
+
+TOUT PSYCHIATRE EST UNE PERSONNE.
+CHAQUE PERSONNE QU’IL ANALYSE, EST MALADE.
+JACQUES EST UN PSYCHIATRE A *MARSEILLE.
+EST-CE QUE *JACQUES EST UNE PERSONNE?
+OU EST *JACQUES?
+EST-CE QUE *JACQUES EST MALADE?
+OUI. A MARSEILLE. JE NE SAIS PAS.
+
+--- 
+‘It is difficult to use a computer to analyze a sentence. The main problem is combinatorial in nature: taken separately, each group of elements in the sentence can be combined in different ways with other groups to form new groups which can in turn be combined again and so on. Usually, there is only one correct way of grouping all the elements but to discover it, all the possible groupings must be tried. To describe this multitude of groupings in an economical way, I use an oriented graph in which each arrow is labeled by a parenthesized expression representing a tree. A Q-system is nothing more than a set of rules allowing such a graph to be transformed into another graph. This information may correspond to an analysis, to a sentence synthesis or to a formal manipulation of this type.’
+  Alain Colmerauer
+
+(see http://alain.colmerauer.free.fr/alcol/ArchivesPublications/PrologHistory/19november92.pdf and http://alain.colmerauer.free.fr/alcol/ArchivesPublications/PrologHistoire/24juillet92plus/24juillet92plusvar.pdf )
+
+--- 
+
+Erlog - Prolog for an Erlang Application
+Erlog is a Prolog interpreter implemented in Erlang and integrated with the Erlang runtime system. It is a subset of the Prolog standard. An Erlog shell (REPL) is also included.
+
+You should use this if you want to include some Prolog or logic programming functionality in a larger Erlang system (Including Elixir, LFE, Joxa etc). If you want a stand alone Prolog you are probably better off using a package like SWI Prolog.
+  Robert Virding
+
+--- 
+
+LIRE
+REGLES
+  +DESC(*X,*Y) -ENFANT(*X,*Y);;
+  +DESC(*X,*Z) -ENFANT(*X,*Y) -DESC(*Y,*Z);;
+  +FRERESOEUR(*X,*Y)
+    -ENFANT(*Z,*X) -ENFANT(*Z,*y) -DIF(*X,*Y);;
+  AMEN
+
+LIRE
+  FAITS
+  +ENFANT(PAUL,MARIE);;
+  +ENFANT(PAUL,PIERRE);;
+  +ENFANT(PAUL,JEAN);;
+  +ENFANT(PIERRE,ALAIN);;
+  +ENFANT(PIERRE,PHILIPPE);;
+  +ENFANT(ALAIN,SOPHIE);;
+  AMEN
+
+LIRE
+  QUESTION
+  -FRERESOEUR(MARIE,*X)
+  -DESC(*X,*Y) / +PETITNEVEUX(*Y) -MASC(*Y)..
+  AMEN
+
+CONCATENER(LIENSDEPARENTE,REGLES,FAITS)
+DEMONTRER(LIENSDEPARENTE,QUESTION,REPONSE)
+ECRIRE(REPONSE)
+AMEN
+
+--- 
+La sortie de ce programme n’est donc pas un terme mais l’ensemble de clauses binaires :
+
++PETITNEVEUX(ALAIN) -MASC(ALAIN);.
++PETITNEVEUX(SOPHIE) -MASC(SOPHIE);.
++PETITNEVEUX(PHILIPPE) -MASC(PHILIPPE);.
+
+---
+
+The standard way of describing Prolog in itself is to use a simple
+meta-interpreter:
+
+  solve((A,B)) :- solve(A), solve(B).
+  solve(A) :- builtin(A), call(A).
+  solve(A,B) :- rule(A, B), solve(B).
+
+The problem with this meta-interpreter is that the set of remaining goals that is not yet solved is not available for program manipulation.
+
 ## How did I get into this mess?
 **Blame Edmund**
 

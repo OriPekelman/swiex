@@ -28,6 +28,7 @@ defmodule PrologDemoWeb.Router do
     live "/causenet/sudoku", CauseNetLive, :sudoku
     live "/causenet/playground", CauseNetLive, :playground
     live "/causenet/bidirectional", CauseNetLive, :bidirectional
+    live "/causenet/adapters", CauseNetLive, :adapters
 
     # Monitoring dashboard
     live "/monitoring", MonitoringLive, :index

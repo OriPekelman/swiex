@@ -39,6 +39,12 @@ end
 - [SWI-Prolog](https://www.swi-prolog.org/) must be installed and available in your PATH
 - Test with: `swipl --version`
 
+Possily we also get to have:
+
+```
+brew install scryer-prolog
+```
+
 ## Quick Start
 
 ### Basic Query
