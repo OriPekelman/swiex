@@ -103,7 +103,7 @@ applications:
           
           # Start the Phoenix server in production mode
           # Using PORT from environment (8888)
-          MIX_ENV=prod PORT=8888 elixir --cookie swiex_demo --name "swiex@${HOSTNAME}" -S mix phx.server
+          MIX_ENV=prod PORT=8888 elixir --name "swiex@${HOSTNAME}" -S mix phx.server
       
       locations:
         "/":

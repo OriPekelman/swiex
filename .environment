@@ -1,2 +1,5 @@
 export PHX_HOST=$(echo $PLATFORM_ROUTES | base64 --decode | jq -r 'to_entries[] | select(.value.primary == true) | .key' | sed 's:/*$::' | sed 's|https\?://||')
 export SECRET_KEY_BASE="$PLATFORM_ENVIRONMENT_TYPE$PLATFORM_ENVIRONMENT$PLATFORM_PROJECT_ENTROPY"
+# Set HOME to /tmp for writable cookie file location
+export HOME=/tmp
+export ERL_AFLAGS="-setcookie ${ERLANG_COOKIE:-swiex_demo_$PLATFORM_PROJECT_ENTROPY}"
