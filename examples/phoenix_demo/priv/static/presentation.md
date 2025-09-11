@@ -443,6 +443,21 @@ X = 1 ; X = 2 ; X = 3 ; false.
 * https://main-bvxea6i-xdi2igb4vnxny.ch-1.platformsh.site/
 * https://llm-jb5zcba-xdi2igb4vnxny.ch-1.platformsh.site/
 
+```
+.upsun/config.yaml
+...
+applications:
+  swiex:
+    source:
+      root: "/"
+    type: "composable:25.05"
+    stack:
+      - "elixir_1_18"
+      - "swi-prolog"
+      - "scryer-prolog"
+...
+```
+
 --- 
 
 ## **Swiex** - An already irrelevant name.
