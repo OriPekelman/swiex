@@ -17,7 +17,7 @@ defmodule PrologDemoWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
+  def static_paths, do: ~w(assets fonts images presentation_images favicon.ico robots.txt presentation.html)
 
   def router do
     quote do

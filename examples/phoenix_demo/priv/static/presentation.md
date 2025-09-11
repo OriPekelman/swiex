@@ -1,21 +1,21 @@
 ---
 marp: true
 ---
-# 🧠 Prolog and Logic Programming for Elixir Developers
+# Prolog and Logic Programming for Elixir Developers
 ## Paris Elixir User Group Presentation
 
 - **Speaker:** Ori Pekelman
 - **Date:** 11/09/2025
 - **GitHub:** https://github.com/OriPekelman/swiex
-
+![bg contain](images/logo.svg)
 ---
 Let's start with the shortest valid Prolog program, if we were in 1972.
-
+![bg right](presentation_images/amen.png)
 ```prolog
 AMEN
 ```
 
-Anyone designing a new programming language **MUST** from henceforward by my royal decree use AMEN as the program terminator. Other than * and () it was the only actual reserved word.
+Anyone designing a new programming language **MUST** from henceforward by my royal decree use AMEN as the program terminator. Other than * and () it was the only actual reserved tokens.
 
 And this talk could happily ended with this discovery - but you came and everything.
 
@@ -50,6 +50,7 @@ Also, don't you worry much of this will be explained.
 > "Erlang is essentially Prolog with processes... We took Prolog, removed backtracking, added processes, and spent 25 years figuring out the consequences."
 > **Joe Amstrong**
 
+![bg right](presentation_images/infinite_loop.jpg)
 --- 
 
 Actually, Joe removed a bit more from Prolog. 
@@ -68,6 +69,7 @@ We will talk later about unification and why backtracking is required for it. Bu
 During the fall of 1972, the first Prolog system was implemented by Philippe (Roussel) in Niklaus Wirt’s language Algol-W; 
 
 The title of their report was actually "**UN SYSTEME DE COMMUNICATION HOMME-MACHINE EN FRANCAIS**"
+![bg right](presentation_images/syntax.png)
 
 --- 
 
@@ -127,19 +129,28 @@ DEMONTRER(LIENSDEPARENTE,QUESTION,REPONSE)
 ECRIRE(REPONSE)
 AMEN
 ```
+And the answer is:
+```
++PETITNEVEUX(ALAIN) -MASC(ALAIN);.
++PETITNEVEUX(SOPHIE) -MASC(SOPHIE);.
++PETITNEVEUX(PHILIPPE) -MASC(PHILIPPE);.
+```
 ---
 # Prolog was built to read language - Erlang to run Telcos - Elixir to run the Web.
+![bg right](presentation_images/erlang_demo.png)
 
 So as I said, Joe Armstrong removed backtracking which we will get into. But also **Homoiconicity**.
 
-You know, the LISP thing: the program's abstract syntax tree (AST) is directly manipulable as a native data structure. 
+---
+### Homoiconicity
+
+You know, the LISP thing: the program's abstract syntax tree (AST) is directly manipulable as a native data structure. Code is data is code is data.
 
 This enables:
 - Code that writes code
 - Powerful macros
 - Runtime code manipulation
 - Reflection and metaprogramming
-
 
 --- 
 ## Prolog programs can inspect and modify themselves:
@@ -205,8 +216,11 @@ foo() # => "Hello from foo"
 | **Pattern match on code** | ✓ Directly | ✗ Only on AST | ✓ On quoted AST |
 
 --- 
+### Homoiconicity
 
-This evolution from Prolog → Erlang → Elixir shows a trade-off: losing syntactic homoiconicity for better performance and clearer code, but regaining metaprogramming power through sophisticated macro systems.
+This evolution from Prolog → Erlang → Elixir shows a trade-off: losing syntactic homoiconicity for better performance and clearer code, but regaining metaprogramming power through the macro system.
+
+Why care about this? What does it have to do with logic programming?  Just shows the impact of the language-use-case on the language-design.
 
 ---
 
@@ -220,20 +234,19 @@ This evolution from Prolog → Erlang → Elixir shows a trade-off: losing synta
 # Prolog wants things to be true.
 
 ```
-            <-                           
 lumière(on) :- interrupteur(on).        
+            <-                           
 ```
-The light is on **IF** the switch is on. Logical. We might better say the switch on implies the light is on.
+The light is on **IF** the switch is on. Logical. We might better say the "switch on" implies the "light on".
 ```
-          <-           AND               
 père(X,Y) :- parent(X,Y), mâle(X).      
+          <-           AND               
 ```
 X is the father of Y **IF** X is a parent of Y **AND** X is male.
 ```
-             <-           OR             
 parent(X, Y) :- père(X, Y) ; mère(X, Y).
+             <-           OR             
 ```
-
 X is a parent of Y **IF** it is the father **OR** the mother of Y.
 
 ---
@@ -301,21 +314,24 @@ naive_sort([3,1,2], Sorted).
 
 --- 
 ## How did I get into this mess?
+![bg right](presentation_images/edmund.jpg)
 **Blame Edmund**
-
 * So the thing was we were working on a project.
 * And I was like: hey this sounds distributed I'll do Elixir.
 * And Edmund was like: I am too bored and have too little patience so I'll express it in Prolog.
-* Afterwards, I have been writing a uchronic science-fiction novel, with quite a complex backstory. And a couple-hundred-pages-in I really wanted to be able to do some sanity checks on the coherence of my world.
-* So WTF. Why not?
+--- 
+## How did I get into this mess?
+![bg right](presentation_images/both.png)
+* Afterwards, I have been writing a uchronic science-fiction novel, with quite a complex backstory. And a couple-hundred-pages-in I really wanted to be able to do some sanity checks on the coherence of my world. So WTF. Why not?
 * The other thing is that I actually like the pattern of using Elixir as the umbrella for running stuff I wouldn't otherwise trust in production.
 ---
 
-## 🎯 **The Programming Paradigm Spectrum**
+
+## **The Programming Paradigm Spectrum**
 
 ```
 Imperative Programming    Functional Programming    Logic Programming
-      "HOW?"                   "WHAT?"               "WHAT THE FUCK??"
+      "HOW?"                   "WHAT?"               "WHAT THE FUCK?"
         |                        |                        |
         |                        |                        |
  Do this, then that,   Transform this reality       What is reality?
@@ -326,7 +342,7 @@ Imperative Programming    Functional Programming    Logic Programming
     C, Java, Python         Elixir, Haskell, F#        Prolog, Datalog
 ```
 
-**Logic programming sits at the extreme "what" end of declarative programming**
+**Logic programming sits at the extreme "what" end of declarative programming and it can also answer "Why"s? ... sometimes ...**
 
 ---
 
@@ -346,11 +362,11 @@ end
 grandparent(X, Z) :- parent(X, Y), parent(Y, Z).
 ```
 
-**Same code works in ALL directions!**
+**Same code works in ALL directions**
 
 ---
 
-## 🎯 **Bidirectional Programming**
+## **Bidirectional Programming**
 ### **One Rule, Multiple Uses**
 
 ```prolog
@@ -370,7 +386,7 @@ X = john ; X = sarah ; X = tom.
 true.
 ```
 
-**The same 1-line rule answers 3 different types of questions!**
+**The same 1-line rule answers 3 different types of questions.**
 
 ---
 # Facts, Rules, Unification, Backtracking.
@@ -400,7 +416,7 @@ X = 1 ; X = 2 ; X = 3 ; false.
 ```
 ---
 
-## 🎯 **Mental Model Shifts for Elixir Developers**
+## **Mental Model Shifts for Elixir Developers**
 
 | **Elixir Thinking** | **Prolog Thinking** |
 |---------------------|---------------------|
@@ -408,11 +424,11 @@ X = 1 ; X = 2 ; X = 3 ; false.
 | Functions return one result | Queries explore all possible solutions |
 | Explicit recursion management | Automatic backtracking handles search |
 | Pattern matching binds left to right | Unification works bidirectionally |
-| Error handling with tuples | Failure triggers backtracking |
+| Error handling | Failure triggers backtracking |
 
 ---
 
-### **🎯 Prolog usefulness**
+### **Prolog usefulness**
 
 1. **Constraint Satisfaction Problems** - N-Queens, Sudoku, Graph Coloring
 2. **Expert Systems & Rule Engines** - Medical diagnosis, business rules
@@ -424,9 +440,12 @@ X = 1 ; X = 2 ; X = 3 ; false.
 
 # Demo time
 
+* https://main-bvxea6i-xdi2igb4vnxny.ch-1.platformsh.site/
+* https://llm-jb5zcba-xdi2igb4vnxny.ch-1.platformsh.site/
+
 --- 
 
-## 🎯 **Swiex**
+## **Swiex** - An already irrelevant name.
 
 Why did I not use ex_prolog or erlog? 
 
@@ -468,7 +487,7 @@ end
 ```
 ---
 
-### **🤔 "But I have questions..."**
+### **"But I have questions..."**
 
 **Q: "Is Prolog still relevant?"**
 A: Probably not.
